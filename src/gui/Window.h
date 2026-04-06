@@ -1,5 +1,4 @@
-// Window.h
-// Written by: Aastha Malpani
+
 // Opens and manages the game window using SFML
 
 #ifndef WINDOW_H
@@ -12,13 +11,12 @@ class Window {
 
 public:
 
-    sf::RenderWindow renderWindow; // the actual window on screen
+    sf::RenderWindow renderWindow; 
     int windowWidth;
     int windowHeight;
     std::string windowTitle;
     bool isWindowOpen;
 
-    // opens the window with given size and title
     void createWindow(int width, int height, std::string title) {
         windowWidth = width;
         windowHeight = height;
@@ -30,22 +28,18 @@ public:
         isWindowOpen = true;
     }
 
-    // returns true if window is still running
     bool checkIfOpen() {
         return renderWindow.isOpen();
     }
-
-    // wipes screen clean before drawing next frame
+    
     void clearScreen() {
-        renderWindow.clear(sf::Color(15, 20, 40)); // dark navy background
+        renderWindow.clear(sf::Color(15, 20, 40)); 
     }
 
-    // shows the drawn frame on screen
     void displayScreen() {
         renderWindow.display();
     }
 
-    // closes the window
     void closeWindow() {
         renderWindow.close();
         isWindowOpen = false;
@@ -55,7 +49,7 @@ public:
     void handleEvents() {
         while (auto eventResult = renderWindow.pollEvent()) {
             if (eventResult->is<sf::Event::Closed>()) {
-                closeWindow(); // close if X button clicked
+                closeWindow();
             }
         }
     }
