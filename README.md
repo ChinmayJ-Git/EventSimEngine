@@ -29,12 +29,36 @@ collect statistics
 Scenarios register entities and schedule their first events. The engine handles everything after that.
 
 ## Project Structure
-src/
-├── core/        — data structures
-├── engine/      — SimEngine, Event, Entity, SimClock
-├── gui/         — SFML window, renderer, dashboard
-├── scenarios/   — HospitalSim, NetworkSim, TrafficSim
-└── analytics/   — StatsCollector, CSVExporter
+EventSimEngine/
+├── src/
+│   ├── core/            (Data structures) 
+│   │   ├── DynamicArray.h
+│   │   ├── MinHeap.h
+│   │   ├── HashMap.h
+│   │   ├── LinkedList.h
+│   │   └── Graph.h
+│   ├── engine/         (Simulation brain)
+│   │   ├── Event.h
+│   │   ├── Entity.h
+│   │   ├── SimClock.h
+│   │   ├── SimEngine.h
+│   │   └── SimEngine.cpp
+│   ├── gui/               (Graphics window)
+│   │   ├── Window.h/cpp
+│   │   ├── Renderer.h/cpp
+│   │   ├── Dashboard.h
+│   │   └── Menu.h
+│   ├── scenarios/      (The three simulated worlds)
+│   │   ├── HospitalSim.h/cpp
+│   │   ├── NetworkSim.h/cpp
+│   │   └── TrafficSim.h/cpp
+│   └── analytics/      (Statistics and file output)
+│       ├── StatsCollector.h
+│       └── CSVExporter.h
+├── tests/              
+├── docs/               
+├── assets/            
+└── main.cpp            
 
 ## Build
 
