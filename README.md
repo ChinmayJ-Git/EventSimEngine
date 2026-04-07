@@ -13,11 +13,13 @@ The engine maintains a queue of future events sorted by time, processes them in 
 Time does not move one second at a time. The clock jumps directly to the next event. This is discrete event simulation, fast enough to process hundreds of thousands of events in seconds.
 
 ## Data Structures
+```
 | Min-Heap | Event queue — O(log n) insert and extract-min |
 | Hash Map | Entity lookup by ID — O(1) average with chaining |
 | Graph | Adjacency list for router and road networks, BFS for shortest path |
 | Linked List | Event history log and router packet buffers |
 | Dynamic Array | General resizable storage |
+```
 
 ## Engine Design
 while event queue is not empty AND time has not ended:
@@ -29,6 +31,8 @@ collect statistics
 Scenarios register entities and schedule their first events. The engine handles everything after that.
 
 ## Project Structure
+
+```
 EventSimEngine/
 ├── src/
 │   ├── core/            (Data structures) 
@@ -37,28 +41,29 @@ EventSimEngine/
 │   │   ├── HashMap.h
 │   │   ├── LinkedList.h
 │   │   └── Graph.h
-│   ├── engine/         (Simulation brain)
+│   ├── engine/          (Simulation brain)
 │   │   ├── Event.h
 │   │   ├── Entity.h
 │   │   ├── SimClock.h
 │   │   ├── SimEngine.h
 │   │   └── SimEngine.cpp
-│   ├── gui/               (Graphics window)
+│   ├── gui/             (Graphics window)
 │   │   ├── Window.h/cpp
 │   │   ├── Renderer.h/cpp
 │   │   ├── Dashboard.h
 │   │   └── Menu.h
-│   ├── scenarios/      (The three simulated worlds)
+│   ├── scenarios/       (The three simulated worlds)
 │   │   ├── HospitalSim.h/cpp
 │   │   ├── NetworkSim.h/cpp
 │   │   └── TrafficSim.h/cpp
-│   └── analytics/      (Statistics and file output)
+│   └── analytics/       (Statistics and file output)
 │       ├── StatsCollector.h
 │       └── CSVExporter.h
-├── tests/              
-├── docs/               
-├── assets/            
-└── main.cpp            
+├── tests/
+├── docs/
+├── assets/
+└── main.cpp
+```          
 
 ## Build
 
