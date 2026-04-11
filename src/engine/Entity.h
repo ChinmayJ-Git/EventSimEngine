@@ -1,6 +1,3 @@
-// This file describes what an "entity" is in our simulation.
-// Concept: Struct / object — the data nodes in our Graph and HashMap.
-
 #ifndef ENTITY_H
 #define ENTITY_H
 
