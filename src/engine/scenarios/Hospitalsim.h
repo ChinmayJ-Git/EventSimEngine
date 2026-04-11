@@ -2,7 +2,6 @@
 #define HOSPITALSIM_H
 
 #include "Event.h"
-#include "Entity.h"
 
 // hospital simulation
 class HospitalSim {
@@ -11,30 +10,35 @@ private:
     int totalDoctors;
     int availableDoctors;
 
-    int totalBeds;
-    int availableBeds;
-
     double escalationTimeLimit;
+
+    // patient data
+    int patientIds[100];
+    int patientPriority[100];     // 1 = critical, 3 = normal, 5 = minor
+    double arrivalTime[100];
+
+    int waitingCount;
+
+    // stats
+    double totalWaitTime;
+    int totalPatients;
 
 public:
 
     // constructor
-    HospitalSim(int doctors, int beds, double escalationLimit);
+    HospitalSim(int doctors, double escalationLimit);
 
     // process event
     void processEvent(Event event);
 
-    // arrival
-    void handleArrival(Entity* patient, double currentTime);
+    // handlers
+    void handleArrival(int patientId, double currentTime);
+    void handleTreatmentStart(int patientId, double currentTime);
+    void handleTreatmentEnd(int patientId, double currentTime);
+    void handleEscalation(int patientId, double currentTime);
 
-    // start treatment
-    void handleTreatmentStart(Entity* patient, double currentTime);
-
-    // end treatment
-    void handleTreatmentEnd(Entity* patient, double currentTime);
-
-    // escalation
-    void handleEscalation(Entity* patient, double currentTime);
+    // helper
+    int getHighestPriorityPatient();
 
 };
 
