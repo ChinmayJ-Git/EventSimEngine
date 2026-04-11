@@ -1,4 +1,4 @@
-#include "Hospitalsim.h"
+#include "HospitalSim.h"
 #include <iostream>
 
 // constructor
@@ -32,22 +32,22 @@ void HospitalSim::processEvent(Event event) {
     }
 }
 
-// handle arrival
+// arrival
 void HospitalSim::handleArrival(Entity* patient, double currentTime) {
     std::cout << "Patient arrived\n";
 }
 
-// handle treatment start
+// start treatment
 void HospitalSim::handleTreatmentStart(Entity* patient, double currentTime) {
     std::cout << "Treatment started\n";
 }
 
-// handle treatment end
+// end treatment
 void HospitalSim::handleTreatmentEnd(Entity* patient, double currentTime) {
     std::cout << "Treatment ended\n";
 }
 
-// handle escalation
+// escalation
 void HospitalSim::handleEscalation(Entity* patient, double currentTime) {
     std::cout << "Patient escalated\n";
 }
