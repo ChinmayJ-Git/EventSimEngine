@@ -1,8 +1,8 @@
 #ifndef MINHEAP_H
 #define MINHEAP_H
 
-#include "src/core/DynamicArray.h"
-#include "src/engine/Event.h"
+#include "DynamicArray.h"
+#include "../engine/Event.h"
 
 class MinHeap
 {

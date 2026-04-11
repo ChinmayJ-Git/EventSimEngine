@@ -1,5 +1,5 @@
-#include "src/scenarios/TrafficSim.h"
-#include "src/scenarios/HospitalSim.h"
+#include "TrafficSim.h"
+#include "HospitalSim.h"
 
 #include <cstdlib>
 #include <ctime>

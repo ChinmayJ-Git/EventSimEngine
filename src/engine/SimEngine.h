@@ -1,11 +1,11 @@
 #ifndef SIMENGINE_H
 #define SIMENGINE_H
 
-#include "src/core/HashMap.h"
-#include "src/core/MinHeap.h"
-#include "src/engine/Entity.h"
-#include "src/engine/Event.h"
-#include "src/engine/SimClock.h"
+#include "../core/HashMap.h"
+#include "../core/MinHeap.h"
+#include "Entity.h"
+#include "Event.h"
+#include "SimClock.h"
 
 #include <string>
 

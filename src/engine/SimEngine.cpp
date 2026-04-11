@@ -1,4 +1,4 @@
-#include "src/engine/SimEngine.h"
+#include "SimEngine.h"
 #include <iostream>
 
 // set up engine

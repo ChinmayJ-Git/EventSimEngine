@@ -1,9 +1,9 @@
 #ifndef HOSPITALSIM_H
 #define HOSPITALSIM_H
 
-#include "src/core/DynamicArray.h"
-#include "src/core/MinHeap.h"
-#include "src/engine/SimEngine.h"
+#include "../core/DynamicArray.h"
+#include "../core/MinHeap.h"
+#include "../engine/SimEngine.h"
 
 #include <string>
 

@@ -1,8 +1,8 @@
 #ifndef HASHMAP_H
 #define HASHMAP_H
 
-#include "src/core/LinkedList.h"
-#include "src/engine/Entity.h"
+#include "LinkedList.h"
+#include "../engine/Entity.h"
 
 struct HashEntry
 {

@@ -1,8 +1,8 @@
 #ifndef TRAFFICSIM_H
 #define TRAFFICSIM_H
 
-#include "src/core/DynamicArray.h"
-#include "src/engine/SimEngine.h"
+#include "../core/DynamicArray.h"
+#include "../engine/SimEngine.h"
 
 #include <string>
 

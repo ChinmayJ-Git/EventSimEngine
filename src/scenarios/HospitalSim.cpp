@@ -1,6 +1,6 @@
-#include "src/scenarios/HospitalSim.h"
+#include "HospitalSim.h"
 
-#include "src/engine/EscalationManager.h"
+#include "../engine/EscalationManager.h"
 
 #include <cstdlib>
 #include <ctime>
