@@ -1,53 +1,40 @@
-#include "HospitalSim.h"
-#include <iostream>
+#ifndef HOSPITALSIM_H
+#define HOSPITALSIM_H
 
-// constructor
-HospitalSim::HospitalSim(int doctors, int beds, double escalationLimit) {
-    totalDoctors = doctors;
-    availableDoctors = doctors;
+#include "Event.h"
 
-    totalBeds = beds;
-    availableBeds = beds;
+// hospital simulation
+class HospitalSim {
 
-    escalationTimeLimit = escalationLimit;
-}
+private:
+    int totalDoctors;
+    int availableDoctors;
 
-// process event
-void HospitalSim::processEvent(Event event) {
+    int totalBeds;
+    int availableBeds;
 
-    Entity* patient = event.Entity;
-    double currentTime = event.time;
+    double escalationTimeLimit;
 
-    if (event.type == ARRIVAL) {
-        handleArrival(patient, currentTime);
-    }
-    else if (event.type == SERVICE_START) {
-        handleTreatmentStart(patient, currentTime);
-    }
-    else if (event.type == SERVICE_END) {
-        handleTreatmentEnd(patient, currentTime);
-    }
-    else if (event.type == ESCALATION) {
-        handleEscalation(patient, currentTime);
-    }
-}
+public:
 
-// arrival
-void HospitalSim::handleArrival(Entity* patient, double currentTime) {
-    std::cout << "Patient arrived\n";
-}
+    // constructor
+    HospitalSim(int doctors, int beds, double escalationLimit);
 
-// start treatment
-void HospitalSim::handleTreatmentStart(Entity* patient, double currentTime) {
-    std::cout << "Treatment started\n";
-}
+    // process event
+    void processEvent(Event event);
 
-// end treatment
-void HospitalSim::handleTreatmentEnd(Entity* patient, double currentTime) {
-    std::cout << "Treatment ended\n";
-}
+    // arrival
+    void handleArrival(int patientId, double currentTime);
 
-// escalation
-void HospitalSim::handleEscalation(Entity* patient, double currentTime) {
-    std::cout << "Patient escalated\n";
-}
+    // start treatment
+    void handleTreatmentStart(int patientId, double currentTime);
+
+    // end treatment
+    void handleTreatmentEnd(int patientId, double currentTime);
+
+    // escalation
+    void handleEscalation(int patientId, double currentTime);
+
+};
+
+#endif
