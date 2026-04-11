@@ -1,9 +1,7 @@
-// This file implements the logic of the Simulation Engine.
-
 #include "SimEngine.h"
 #include <iostream>
 
-//set up the engine before any simulation starts
+// set up engine
 SimEngine::SimEngine(double startTime, double endTime, bool showDetails)
 {
   simulationClock = new SimClock(startTime, endTime);
@@ -11,45 +9,47 @@ SimEngine::SimEngine(double startTime, double endTime, bool showDetails)
   verboseMode = showDetails;
   currentStats = SimulationStats();
 }
+
+// clean up memory
 SimEngine::~SimEngine()
 {
-
   delete simulationClock;
 }
 
+// add event to queue
 void SimEngine::scheduleEvent(double eventTime, EventType type, int entityId,
                               int locationId, std::string description)
 {
-
   Event *newEvent = new Event(eventTime, type, entityId, locationId, description);
-
   eventQueue.insert(newEvent);
 }
 
-// addEntity to register a new entity in the simulation
+// register entity
 void SimEngine::addEntity(Entity *newEntity)
 {
-
   entityTable.addEntity(newEntity);
-
   currentStats.totalEntitiesCreated++;
 }
 
+// find entity by id
 Entity *SimEngine::getEntity(int entityId)
 {
   return entityTable.findEntityById(entityId);
 }
 
+// current sim time
 double SimEngine::getCurrentTime() const
 {
   return simulationClock->getCurrentTime();
 }
 
+// return stats
 SimulationStats SimEngine::getStats() const
 {
   return currentStats;
 }
 
+// main simulation loop
 void SimEngine::run()
 {
   engineIsRunning = true;
@@ -57,16 +57,13 @@ void SimEngine::run()
   std::cout << "Simulation started." << std::endl;
   std::cout << "Running until time: " << simulationClock->getEndTime() << std::endl;
 
-  // Keep going as long as:
-  // 1. There are still events waiting to be processed
-  // 2. The simulation clock has not hit the end time
   while (!eventQueue.isEmpty() && !simulationClock->hasSimulationEnded())
   {
     Event *nextEvent = eventQueue.extractMinimum();
+
     if (nextEvent == nullptr)
-    {
       break;
-    }
+
     simulationClock->advance(nextEvent->time);
 
     if (simulationClock->hasSimulationEnded())
@@ -74,27 +71,26 @@ void SimEngine::run()
       delete nextEvent;
       break;
     }
+
     if (verboseMode)
     {
       std::cout << "Time " << nextEvent->time
-                << " | Event: " << nextEvent->description
-                << " | Entity ID: " << nextEvent->entityId
+                << " | " << nextEvent->description
+                << " | Entity: " << nextEvent->entityId
                 << std::endl;
     }
 
     processEvent(nextEvent);
-
     currentStats.totalEventsProcessed++;
-
     delete nextEvent;
   }
 
   engineIsRunning = false;
-
   std::cout << "Simulation complete." << std::endl;
   std::cout << "Total events processed: " << currentStats.totalEventsProcessed << std::endl;
 }
 
+// handle one event
 void SimEngine::processEvent(Event *eventToProcess)
 {
   Entity *involvedEntity = entityTable.findEntityById(eventToProcess->entityId);
@@ -102,33 +98,25 @@ void SimEngine::processEvent(Event *eventToProcess)
   if (eventToProcess->type == ARRIVAL)
   {
     if (involvedEntity != nullptr)
-    {
       involvedEntity->state = WAITING;
-    }
   }
   else if (eventToProcess->type == SERVICE_START)
   {
     if (involvedEntity != nullptr)
     {
       involvedEntity->state = BUSY;
-
       involvedEntity->timeServiceStarted = eventToProcess->time;
 
-      double thisEntitysWaitTime = involvedEntity->getWaitTime();
-      if (thisEntitysWaitTime >= 0)
+      double waitTime = involvedEntity->getWaitTime();
+      if (waitTime >= 0)
       {
+        currentStats.totalWaitTime += waitTime;
 
-        currentStats.totalWaitTime += thisEntitysWaitTime;
+        if (waitTime > currentStats.longestWaitTime)
+          currentStats.longestWaitTime = waitTime;
 
-        if (thisEntitysWaitTime > currentStats.longestWaitTime)
-        {
-          currentStats.longestWaitTime = thisEntitysWaitTime;
-        }
-
-        if (thisEntitysWaitTime < currentStats.shortestWaitTime)
-        {
-          currentStats.shortestWaitTime = thisEntitysWaitTime;
-        }
+        if (waitTime < currentStats.shortestWaitTime)
+          currentStats.shortestWaitTime = waitTime;
       }
     }
   }
@@ -138,29 +126,38 @@ void SimEngine::processEvent(Event *eventToProcess)
     {
       involvedEntity->state = FINISHED;
       involvedEntity->timeOfDeparture = eventToProcess->time;
-
-      // Count one more finished entity
       currentStats.totalEntitiesFinished++;
     }
   }
+  else if (eventToProcess->type == ESCALATION)
+  {
+    if (involvedEntity != nullptr && involvedEntity->state == WAITING)
+    {
+      if (involvedEntity->priorityLevel == 5)
+        involvedEntity->priorityLevel = 3;
+      else if (involvedEntity->priorityLevel == 3)
+        involvedEntity->priorityLevel = 1;
+    }
+  }
+  else if (eventToProcess->type == SIGNAL_CHECK)
+  {
+    // handled by TrafficSim
+  }
   else if (eventToProcess->type == TICK)
   {
-  }
-  else
-  {
+    // periodic tick
   }
 }
 
-// clear everything for another simulation run
-
+// reset for another run
 void SimEngine::reset()
 {
-
   simulationClock->reset();
   currentStats = SimulationStats();
   engineIsRunning = false;
 }
 
+// print results
 void SimEngine::printStats() const
 {
   std::cout << std::endl;
