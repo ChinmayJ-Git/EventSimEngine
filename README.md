@@ -21,7 +21,7 @@ Most student simulations are hardcoded for one use case. This engine is not. The
 The two innovative features — triage escalation and adaptive signals. Triage escalation dynamically reorders the waiting queue mid-simulation as patients upgrade priority. Adaptive signal control means no two simulation runs produce identical signal timings because the signals react to what is actually happening.
 
 ---
-
+```
 ## Project Structure
 EventSimEngine/
 ├── src/
@@ -53,7 +53,7 @@ EventSimEngine/
 ├── docs/
 ├── assets/
 └── main.cpp
-
+```
 ---
 
 ## How to Build
