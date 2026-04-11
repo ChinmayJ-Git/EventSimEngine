@@ -5,28 +5,29 @@
 #define ENTITY_H
 
 #include <string>
+
+// entity types
 enum EntityType
 {
-    PATIENT,        
-    DOCTOR,         
-    BED,            
-    ROUTER,         
-    PACKET,         
-    CAR,            
-    TRAFFIC_LIGHT,  
-    GENERIC         
+    PATIENT,
+    DOCTOR,
+    BED,
+    CAR,
+    TRAFFIC_LIGHT,
+    GENERIC
 };
 
+// entity states
 enum EntityState
 {
-    IDLE,       
-    BUSY,      
-    WAITING,    
-    MOVING,     
-    FINISHED    
+    IDLE,
+    BUSY,
+    WAITING,
+    MOVING,
+    FINISHED
 };
 
-
+// one entity in the simulation
 struct Entity
 {
     int id;
@@ -39,6 +40,12 @@ struct Entity
     int priorityLevel;
     int currentLocationId;
 
+    // triage escalation deadline
+    // if patient is not seen before this time, ESCALATION event fires
+    // -1 means no escalation scheduled
+    double escalationDeadline;
+
+    // constructor
     Entity(int entityId, EntityType entityType, std::string entityName,
            double arrivalTime, int priority = 5)
     {
@@ -51,31 +58,27 @@ struct Entity
         timeOfDeparture = -1.0;
         priorityLevel = priority;
         currentLocationId = -1;
+        escalationDeadline = -1.0;
     }
 
+    // calc wait time
     double getWaitTime() const
     {
         if (timeServiceStarted < 0)
         {
             return -1.0;
         }
-        double waitTime = timeServiceStarted - timeOfArrival;
-        return waitTime;
+        return timeServiceStarted - timeOfArrival;
     }
 
-    
-// This function returns the time from arrival to departure
+    // calc total time in system
     double getTotalTimeInSystem() const
     {
-        // If they have not left yet, we cannot calculate this
         if (timeOfDeparture < 0)
         {
             return -1.0;
         }
-
-        // Total time = moment they left minus moment they arrived
-        double totalTime = timeOfDeparture - timeOfArrival;
-        return totalTime;
+        return timeOfDeparture - timeOfArrival;
     }
 };
 
