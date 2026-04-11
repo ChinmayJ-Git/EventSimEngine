@@ -1,32 +1,49 @@
 #ifndef TRAFFICSIM_H
 #define TRAFFICSIM_H
 
-#include "Event.h"
+#include "src/core/DynamicArray.h"
+#include "src/engine/SimEngine.h"
 
-// traffic simulation
-class TrafficSim {
+#include <string>
 
+class TrafficSim
+{
 private:
-    int greenSignal;          // 0 = road A, 1 = road B
+    SimEngine *engine;
+    int numberOfIntersections;
+    double duration;
 
-    int queueA[100];
-    int queueB[100];
+    DynamicArray<int> lightStates;
+    DynamicArray<double> signalTimers;
+    DynamicArray<int> lightEntityIds;
+    DynamicArray<DynamicArray<int> *> waitingCarIds;
+    DynamicArray<DynamicArray<double> *> waitingArrivalTimes;
+    DynamicArray<int> carsPassedPerIntersection;
 
-    int countA;
-    int countB;
+    int nextEntityId;
+
+    int totalCars;
+    int totalPassed;
+    double totalCarWaitTime;
+    double longestCarWait;
+    int busiestIntersection;
 
 public:
+    TrafficSim(SimEngine *engine, int numberOfIntersections, double duration);
+    ~TrafficSim();
 
-    // constructor
-    TrafficSim();
+    void initialise();
+    void run();
+    void printResults();
 
-    // process event
-    void processEvent(Event event);
-
-    // handlers
-    void handleArrival(int carId, int road, double currentTime);
-    void handleSignalCheck(double currentTime);
-
+private:
+    void buildRoadGraph();
+    void handleArrival(Event *eventData);
+    void handleSignalCheck(Event *eventData);
+    void handleSignalChange(Event *eventData);
+    void handleDeparture(Event *eventData);
+    void updateBusiestByQueue(int intersectionId);
+    double getRandomCarGap() const;
 };
 
 #endif

@@ -1,45 +1,61 @@
 #ifndef HOSPITALSIM_H
 #define HOSPITALSIM_H
 
-#include "Event.h"
+#include "src/core/DynamicArray.h"
+#include "src/core/MinHeap.h"
+#include "src/engine/SimEngine.h"
 
-// hospital simulation
-class HospitalSim {
+#include <string>
 
+class HospitalSim
+{
 private:
-    int totalDoctors;
-    int availableDoctors;
+    SimEngine *engine;
+    int numberOfDoctors;
+    int numberOfBeds;
+    double duration;
 
-    double escalationTimeLimit;
+    MinHeap localEventQueue;
+    DynamicArray<int> doctorIds;
+    DynamicArray<int> bedIds;
+    DynamicArray<int> waitingPatientIds;
 
-    // patient data
-    int patientIds[100];
-    int patientPriority[100];     // 1 = critical, 3 = normal, 5 = minor
-    double arrivalTime[100];
+    int nextEntityId;
 
-    int waitingCount;
-
-    // stats
-    double totalWaitTime;
     int totalPatients;
+    int totalServed;
+    int totalEscalations;
+    double totalWaitTime;
+    double longestWait;
 
 public:
+    HospitalSim(SimEngine *engine, int numberOfDoctors,
+                int numberOfBeds, double duration);
 
-    // constructor
-    HospitalSim(int doctors, double escalationLimit);
+    void initialise();
+    void run();
+    void printResults();
 
-    // process event
-    void processEvent(Event event);
+private:
+    void queueScenarioEvent(double eventTime, EventType type, int entityId,
+                            int locationId, const std::string &description);
+    void processScenarioLogic();
 
-    // handlers
-    void handleArrival(int patientId, double currentTime);
-    void handleTreatmentStart(int patientId, double currentTime);
-    void handleTreatmentEnd(int patientId, double currentTime);
-    void handleEscalation(int patientId, double currentTime);
+    void handleArrival(Event *eventData);
+    void handleServiceStart(Event *eventData);
+    void handleServiceEnd(Event *eventData);
+    void handleEscalation(Event *eventData);
+    void handleDeparture(Event *eventData);
 
-    // helper
-    int getHighestPriorityPatient();
+    int findFreeDoctor() const;
+    int findWaitingIndexById(int patientId) const;
+    void insertWaitingPatient(int patientId);
+    void removeWaitingAt(int index);
+    void sortWaitingByPriority();
 
+    int getRandomPriority() const;
+    double getRandomArrivalGap() const;
+    double getRandomServiceDuration() const;
 };
 
 #endif
