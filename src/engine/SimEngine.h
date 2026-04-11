@@ -1,5 +1,3 @@
-// This file declares the Simulation Engine
-// Used Priority Queue (Min-Heap) for event ordering and the core Event-Driven Simulation loop.
 #ifndef SIMENGINE_H
 #define SIMENGINE_H
 
