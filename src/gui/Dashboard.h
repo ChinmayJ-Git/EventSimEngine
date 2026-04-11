@@ -1,5 +1,5 @@
 
-// Shows live simulation stats on the side of the screen
+// live stats panel on screen
 
 #ifndef DASHBOARD_H
 #define DASHBOARD_H
@@ -22,12 +22,14 @@ public:
     sf::Text completedEntitiesText;
     sf::Text averageWaitText;
     sf::Text currentTimeText;
+    sf::Text escalationText;
 
     int totalEntities;
     int activeEntities;
     int completedEntities;
     double averageWaitTime;
     double currentSimTime;
+    int escalationCount;
 
     void setupDashboard() {
         totalEntities = 0;
@@ -35,6 +37,7 @@ public:
         completedEntities = 0;
         averageWaitTime = 0.0;
         currentSimTime = 0.0;
+        escalationCount = 0;
         fontLoaded = false;
 
         dashboardBackground.setSize(sf::Vector2f(250, 700));
@@ -42,12 +45,13 @@ public:
         dashboardBackground.setFillColor(sf::Color(20, 25, 50));
     }
 
-    void updateStats(int total, int active, int completed, double avgWait, double simTime) {
+    void updateStats(int total, int active, int completed, double avgWait, double simTime, int escalations) {
         totalEntities = total;
         activeEntities = active;
         completedEntities = completed;
         averageWaitTime = avgWait;
         currentSimTime = simTime;
+        escalationCount = escalations;
     }
 
     void drawDashboard(sf::RenderWindow& window) {
