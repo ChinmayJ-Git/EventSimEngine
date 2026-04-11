@@ -15,7 +15,7 @@ HospitalSim::HospitalSim(int doctors, int beds, double escalationLimit) {
 // process event
 void HospitalSim::processEvent(Event event) {
 
-    Entity* patient = event.entity;
+    Entity* patient = event.Entity;
     double currentTime = event.time;
 
     if (event.type == ARRIVAL) {

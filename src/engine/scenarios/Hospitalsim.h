@@ -1,8 +1,8 @@
 #ifndef HOSPITALSIM_H
 #define HOSPITALSIM_H
 
-#include "../engine/Event.h"
-#include "../engine/Entity.h"
+#include "Event.h"
+#include "Entity.h"
 
 // hospital simulation
 class HospitalSim {
