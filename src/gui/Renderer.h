@@ -1,4 +1,5 @@
-// Draws patients, packets and cars on the simulation window
+
+// draws entities on simulation window
 
 #ifndef RENDERER_H
 #define RENDERER_H
@@ -14,10 +15,9 @@ public:
     bool fontLoaded;
 
     sf::CircleShape patientCircle;
-
     sf::RectangleShape entityBox;
-
     sf::Text labelText;
+
     void setupRenderer() {
         fontLoaded = false;
 
@@ -27,22 +27,26 @@ public:
         entityBox.setSize(sf::Vector2f(20, 20));
         entityBox.setFillColor(sf::Color(100, 150, 255));
     }
+
     void drawPatient(sf::RenderWindow& window, float x, float y) {
         patientCircle.setPosition(sf::Vector2f(x, y));
         window.draw(patientCircle);
     }
-    void drawEntity(sf::RenderWindow& window, float x, float y, sf::Color color) {
+
+    void drawCar(sf::RenderWindow& window, float x, float y, sf::Color color) {
         entityBox.setPosition(sf::Vector2f(x, y));
         entityBox.setFillColor(color);
         window.draw(entityBox);
     }
-       void drawCircle(sf::RenderWindow& window, float x, float y, float radius, sf::Color color) {
+
+    void drawCircle(sf::RenderWindow& window, float x, float y, float radius, sf::Color color) {
         sf::CircleShape circle(radius);
         circle.setPosition(sf::Vector2f(x, y));
         circle.setFillColor(color);
         window.draw(circle);
     }
-  void drawRect(sf::RenderWindow& window, float x, float y, float width, float height, sf::Color color) {
+
+    void drawRect(sf::RenderWindow& window, float x, float y, float width, float height, sf::Color color) {
         sf::RectangleShape rect(sf::Vector2f(width, height));
         rect.setPosition(sf::Vector2f(x, y));
         rect.setFillColor(color);
