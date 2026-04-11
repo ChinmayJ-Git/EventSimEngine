@@ -1,4 +1,4 @@
-#include "SimEngine.h"
+#include "src/engine/SimEngine.h"
 #include <iostream>
 
 // set up engine
@@ -27,14 +27,14 @@ void SimEngine::scheduleEvent(double eventTime, EventType type, int entityId,
 // register entity
 void SimEngine::addEntity(Entity *newEntity)
 {
-  entityTable.addEntity(newEntity);
+  entityTable.insert(newEntity->id, newEntity);
   currentStats.totalEntitiesCreated++;
 }
 
 // find entity by id
 Entity *SimEngine::getEntity(int entityId)
 {
-  return entityTable.findEntityById(entityId);
+  return entityTable.get(entityId);
 }
 
 // current sim time
@@ -93,7 +93,7 @@ void SimEngine::run()
 // handle one event
 void SimEngine::processEvent(Event *eventToProcess)
 {
-  Entity *involvedEntity = entityTable.findEntityById(eventToProcess->entityId);
+  Entity *involvedEntity = entityTable.get(eventToProcess->entityId);
 
   if (eventToProcess->type == ARRIVAL)
   {

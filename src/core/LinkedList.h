@@ -5,11 +5,13 @@
 
 // single node
 template <typename T>
-struct ListNode {
+struct ListNode
+{
     T data;
-    ListNode* next;
+    ListNode *next;
 
-    ListNode(const T& val) {
+    ListNode(const T &val)
+    {
         data = val;
         next = nullptr;
     }
@@ -17,32 +19,39 @@ struct ListNode {
 
 // singly linked list
 template <typename T>
-class LinkedList {
+class LinkedList
+{
 private:
-    ListNode<T>* head;
-    ListNode<T>* tail;
+    ListNode<T> *head;
+    ListNode<T> *tail;
     int size;
 
 public:
     // init empty list
-    LinkedList() {
+    LinkedList()
+    {
         head = nullptr;
         tail = nullptr;
         size = 0;
     }
 
     // clean up all nodes
-    ~LinkedList() {
+    ~LinkedList()
+    {
         clear();
     }
 
     // add to back
-    void pushBack(const T& val) {
-        ListNode<T>* newNode = new ListNode<T>(val);
-        if (tail == nullptr) {
+    void pushBack(const T &val)
+    {
+        ListNode<T> *newNode = new ListNode<T>(val);
+        if (tail == nullptr)
+        {
             head = newNode;
             tail = newNode;
-        } else {
+        }
+        else
+        {
             tail->next = newNode;
             tail = newNode;
         }
@@ -50,12 +59,16 @@ public:
     }
 
     // add to front
-    void pushFront(const T& val) {
-        ListNode<T>* newNode = new ListNode<T>(val);
-        if (head == nullptr) {
+    void pushFront(const T &val)
+    {
+        ListNode<T> *newNode = new ListNode<T>(val);
+        if (head == nullptr)
+        {
             head = newNode;
             tail = newNode;
-        } else {
+        }
+        else
+        {
             newNode->next = head;
             head = newNode;
         }
@@ -63,9 +76,10 @@ public:
     }
 
     // remove from front
-    T popFront() {
+    T popFront()
+    {
         T val = head->data;
-        ListNode<T>* temp = head;
+        ListNode<T> *temp = head;
         head = head->next;
         if (head == nullptr)
             tail = nullptr;
@@ -75,22 +89,27 @@ public:
     }
 
     // peek front value
-    T& front() {
+    T &front()
+    {
         return head->data;
     }
 
     // peek back value
-    T& back() {
+    T &back()
+    {
         return tail->data;
     }
 
     // remove node by value
-    void remove(const T& val) {
-        ListNode<T>* curr = head;
-        ListNode<T>* prev = nullptr;
+    void remove(const T &val)
+    {
+        ListNode<T> *curr = head;
+        ListNode<T> *prev = nullptr;
 
-        while (curr != nullptr) {
-            if (curr->data == val) {
+        while (curr != nullptr)
+        {
+            if (curr->data == val)
+            {
                 if (prev == nullptr)
                     head = curr->next;
                 else
@@ -107,9 +126,11 @@ public:
     }
 
     // check if value exists
-    bool contains(const T& val) {
-        ListNode<T>* curr = head;
-        while (curr != nullptr) {
+    bool contains(const T &val) const
+    {
+        ListNode<T> *curr = head;
+        while (curr != nullptr)
+        {
             if (curr->data == val)
                 return true;
             curr = curr->next;
@@ -118,19 +139,23 @@ public:
     }
 
     // current size
-    int getSize() {
+    int getSize() const
+    {
         return size;
     }
 
     // check if empty
-    bool isEmpty() {
+    bool isEmpty() const
+    {
         return size == 0;
     }
 
     // delete all nodes
-    void clear() {
-        while (head != nullptr) {
-            ListNode<T>* temp = head;
+    void clear()
+    {
+        while (head != nullptr)
+        {
+            ListNode<T> *temp = head;
             head = head->next;
             delete temp;
         }
@@ -139,9 +164,11 @@ public:
     }
 
     // print all values (debug)
-    void print() {
-        ListNode<T>* curr = head;
-        while (curr != nullptr) {
+    void print()
+    {
+        ListNode<T> *curr = head;
+        while (curr != nullptr)
+        {
             std::cout << curr->data << " -> ";
             curr = curr->next;
         }
@@ -149,7 +176,8 @@ public:
     }
 
     // get head pointer (read only)
-    ListNode<T>* getHead() {
+    ListNode<T> *getHead() const
+    {
         return head;
     }
 };

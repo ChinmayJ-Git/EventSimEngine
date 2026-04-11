@@ -1,90 +1,129 @@
 #ifndef MINHEAP_H
 #define MINHEAP_H
 
-#include <iostream>
-#include "DynamicArray.h"
+#include "src/core/DynamicArray.h"
+#include "src/engine/Event.h"
 
-// generic min-heap on any type T
-template <typename T>
-class MinHeap {
+class MinHeap
+{
 private:
-    DynamicArray<T> data;
+    DynamicArray<Event *> heapData;
 
-    // index helpers
-    int parent(int i) { return (i - 1) / 2; }
-    int leftChild(int i) { return 2 * i + 1; }
-    int rightChild(int i) { return 2 * i + 2; }
-
-    // swap two elements
-    void swap(int i, int j) {
-        T temp = data.get(i);
-        data.set(i, data.get(j));
-        data.set(j, temp);
-    }
-
-    // bubble up after insert
-    void heapifyUp(int i) {
-        while (i > 0 && data.get(i).priority < data.get(parent(i)).priority) {
-            swap(i, parent(i));
-            i = parent(i);
-        }
-    }
-
-    // push down after extract
-    void heapifyDown(int i) {
-        int smallest = i;
-        int left = leftChild(i);
-        int right = rightChild(i);
-        int sz = data.size();
-
-        if (left < sz && data.get(left).priority < data.get(smallest).priority)
-            smallest = left;
-        if (right < sz && data.get(right).priority < data.get(smallest).priority)
-            smallest = right;
-
-        if (smallest != i) {
-            swap(i, smallest);
-            heapifyDown(smallest);
-        }
+    void swapNodes(int firstIndex, int secondIndex)
+    {
+        Event *temp = heapData.get(firstIndex);
+        heapData.set(firstIndex, heapData.get(secondIndex));
+        heapData.set(secondIndex, temp);
     }
 
 public:
-    // insert new element
-    void insert(const T& item) {
-        data.pushBack(item);
-        heapifyUp(data.size() - 1);
+    void insert(Event *newEvent)
+    {
+        heapData.pushBack(newEvent);
+        heapifyUp(heapData.size() - 1);
     }
 
-    // get smallest without removing
-    T peek() {
-        return data.get(0);
+    Event *extractMinimum()
+    {
+        if (isEmpty())
+        {
+            return nullptr;
+        }
+
+        Event *minimumEvent = heapData.get(0);
+        int lastIndex = heapData.size() - 1;
+
+        if (lastIndex == 0)
+        {
+            heapData.popBack();
+            return minimumEvent;
+        }
+
+        heapData.set(0, heapData.get(lastIndex));
+        heapData.popBack();
+        heapifyDown(0);
+
+        return minimumEvent;
     }
 
-    // remove and return smallest
-    T extractMin() {
-        T min = data.get(0);
-        data.set(0, data.get(data.size() - 1));
-        data.popBack();
-        if (data.size() > 0)
-            heapifyDown(0);
-        return min;
+    Event *peekMinimum() const
+    {
+        if (isEmpty())
+        {
+            return nullptr;
+        }
+
+        return heapData.get(0);
     }
 
-    // check if empty
-    bool isEmpty() {
-        return data.size() == 0;
+    bool isEmpty() const
+    {
+        return heapData.size() == 0;
     }
 
-    // current size
-    int getSize() {
-        return data.size();
+    int getSize() const
+    {
+        return heapData.size();
     }
 
-    // print heap (debug)
-    void print() {
-        for (int i = 0; i < data.size(); i++)
-            std::cout << data.get(i).priority << " ";
-        std::cout << std::endl;
+private:
+    void heapifyUp(int index)
+    {
+        while (index > 0)
+        {
+            int parentIndex = (index - 1) / 2;
+
+            Event *currentEvent = heapData.get(index);
+            Event *parentEvent = heapData.get(parentIndex);
+
+            if (!(*currentEvent < *parentEvent))
+            {
+                break;
+            }
+
+            swapNodes(index, parentIndex);
+            index = parentIndex;
+        }
+    }
+
+    void heapifyDown(int index)
+    {
+        int size = heapData.size();
+
+        while (true)
+        {
+            int smallestIndex = index;
+            int leftChildIndex = 2 * index + 1;
+            int rightChildIndex = 2 * index + 2;
+
+            if (leftChildIndex < size)
+            {
+                Event *leftChildEvent = heapData.get(leftChildIndex);
+                Event *smallestEvent = heapData.get(smallestIndex);
+                if (*leftChildEvent < *smallestEvent)
+                {
+                    smallestIndex = leftChildIndex;
+                }
+            }
+
+            if (rightChildIndex < size)
+            {
+                Event *rightChildEvent = heapData.get(rightChildIndex);
+                Event *smallestEvent = heapData.get(smallestIndex);
+                if (*rightChildEvent < *smallestEvent)
+                {
+                    smallestIndex = rightChildIndex;
+                }
+            }
+
+            if (smallestIndex == index)
+            {
+                break;
+            }
+
+            swapNodes(index, smallestIndex);
+            index = smallestIndex;
+        }
     }
 };
 
