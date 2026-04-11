@@ -5,7 +5,6 @@
 #include "DynamicArray.h"
 
 // generic min-heap on any type T
-// T must support: T.priority (double) for comparison
 template <typename T>
 class MinHeap {
 private:
@@ -18,14 +17,14 @@ private:
 
     // swap two elements
     void swap(int i, int j) {
-        T temp = data[i];
-        data[i] = data[j];
-        data[j] = temp;
+        T temp = data.get(i);
+        data.set(i, data.get(j));
+        data.set(j, temp);
     }
 
     // bubble up after insert
     void heapifyUp(int i) {
-        while (i > 0 && data[i].priority < data[parent(i)].priority) {
+        while (i > 0 && data.get(i).priority < data.get(parent(i)).priority) {
             swap(i, parent(i));
             i = parent(i);
         }
@@ -36,11 +35,11 @@ private:
         int smallest = i;
         int left = leftChild(i);
         int right = rightChild(i);
-        int size = data.getSize();
+        int sz = data.size();
 
-        if (left < size && data[left].priority < data[smallest].priority)
+        if (left < sz && data.get(left).priority < data.get(smallest).priority)
             smallest = left;
-        if (right < size && data[right].priority < data[smallest].priority)
+        if (right < sz && data.get(right).priority < data.get(smallest).priority)
             smallest = right;
 
         if (smallest != i) {
@@ -52,39 +51,39 @@ private:
 public:
     // insert new element
     void insert(const T& item) {
-        data.push_back(item);
-        heapifyUp(data.getSize() - 1);
+        data.pushBack(item);
+        heapifyUp(data.size() - 1);
     }
 
     // get smallest without removing
-    T& peek() {
-        return data[0];
+    T peek() {
+        return data.get(0);
     }
 
     // remove and return smallest
     T extractMin() {
-        T min = data[0];
-        data[0] = data[data.getSize() - 1];
-        data.pop_back();
-        if (data.getSize() > 0)
+        T min = data.get(0);
+        data.set(0, data.get(data.size() - 1));
+        data.popBack();
+        if (data.size() > 0)
             heapifyDown(0);
         return min;
     }
 
     // check if empty
     bool isEmpty() {
-        return data.getSize() == 0;
+        return data.size() == 0;
     }
 
     // current size
     int getSize() {
-        return data.getSize();
+        return data.size();
     }
 
-    // print heap (debug only)
+    // print heap (debug)
     void print() {
-        for (int i = 0; i < data.getSize(); i++)
-            std::cout << data[i].priority << " ";
+        for (int i = 0; i < data.size(); i++)
+            std::cout << data.get(i).priority << " ";
         std::cout << std::endl;
     }
 };

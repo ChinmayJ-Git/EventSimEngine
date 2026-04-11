@@ -1,8 +1,8 @@
 #ifndef HOSPITALSIM_H
 #define HOSPITALSIM_H
 
-#include "../engine/Event.h"
-#include "../engine/Entity.h"
+#include "Event.h"
+#include "Entity.h"
 
 // hospital simulation
 class HospitalSim {
@@ -21,10 +21,10 @@ public:
     // constructor
     HospitalSim(int doctors, int beds, double escalationLimit);
 
-    // handle event
+    // process event
     void processEvent(Event event);
 
-    // patient arrival
+    // arrival
     void handleArrival(Entity* patient, double currentTime);
 
     // start treatment
@@ -33,7 +33,7 @@ public:
     // end treatment
     void handleTreatmentEnd(Entity* patient, double currentTime);
 
-    // escalation event
+    // escalation
     void handleEscalation(Entity* patient, double currentTime);
 
 };
