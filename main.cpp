@@ -8,6 +8,7 @@
 #include "src/scenarios/TrafficSim.h"
 
 #include <SFML/Graphics.hpp>
+#include <iostream>
 
 int main()
 {
@@ -18,11 +19,45 @@ int main()
   Menu menu;
   int choice = menu.show(renderWindow);
 
-  SimEngine engine(0.0, 500.0, false);
+  int numDoctors = 3;
+  int numBeds = 10;
+  int numIntersections = 6;
+  double simDuration = 500.0;
+  double arrivalGap = 10.0;
+  double carArrivalGap = 5.0;
 
   if (choice == 1)
   {
-    HospitalSim hospitalSim(&engine, 3, 10, 500.0);
+    std::cout << "Enter number of doctors (recommended: 2-5): ";
+    std::cin >> numDoctors;
+
+    std::cout << "Enter number of beds (recommended: 5-20): ";
+    std::cin >> numBeds;
+
+    std::cout << "Enter simulation duration (recommended: 200-1000): ";
+    std::cin >> simDuration;
+
+    std::cout << "Enter average seconds between patient arrivals (recommended: 5-15): ";
+    std::cin >> arrivalGap;
+  }
+
+  if (choice == 2)
+  {
+    std::cout << "Enter number of intersections (recommended: 4-8): ";
+    std::cin >> numIntersections;
+
+    std::cout << "Enter simulation duration (recommended: 200-1000): ";
+    std::cin >> simDuration;
+
+    std::cout << "Enter average seconds between car arrivals (recommended: 3-10): ";
+    std::cin >> carArrivalGap;
+  }
+
+  SimEngine engine(0.0, simDuration, false);
+
+  if (choice == 1)
+  {
+    HospitalSim hospitalSim(&engine, numDoctors, numBeds, simDuration, arrivalGap);
     hospitalSim.initialise();
     hospitalSim.run();
     hospitalSim.printResults();
@@ -30,7 +65,7 @@ int main()
 
   if (choice == 2)
   {
-    TrafficSim trafficSim(&engine, 6, 500.0);
+    TrafficSim trafficSim(&engine, numIntersections, simDuration, carArrivalGap);
     trafficSim.initialise();
     trafficSim.run();
     trafficSim.printResults();
@@ -42,11 +77,11 @@ int main()
   window.clear();
   if (choice == 1)
   {
-    renderer.drawHospital(&engine, 3);
+    renderer.drawHospital(&engine, numDoctors);
   }
   if (choice == 2)
   {
-    renderer.drawTraffic(&engine, 6);
+    renderer.drawTraffic(&engine, numIntersections);
   }
   renderer.drawStats(stats);
   window.display();

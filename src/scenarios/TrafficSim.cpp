@@ -9,11 +9,17 @@
 static bool trafficSeeded = false;
 
 TrafficSim::TrafficSim(SimEngine *engine, int numberOfIntersections,
-                       double duration)
+                       double duration, double carArrivalGap)
 {
     this->engine = engine;
     this->numberOfIntersections = numberOfIntersections;
     this->duration = duration;
+    this->carArrivalGap = carArrivalGap;
+
+    if (this->carArrivalGap <= 0.0)
+    {
+        this->carArrivalGap = 1.0;
+    }
 
     nextEntityId = 20000;
 
@@ -295,6 +301,5 @@ void TrafficSim::updateBusiestByQueue(int intersectionId)
 
 double TrafficSim::getRandomCarGap() const
 {
-    int randomValue = 3 + (std::rand() % 10);
-    return (double)randomValue;
+    return carArrivalGap;
 }

@@ -14,6 +14,7 @@ private:
     int numberOfDoctors;
     int numberOfBeds;
     double duration;
+    double arrivalGap;
 
     MinHeap localEventQueue;
     DynamicArray<int> doctorIds;
@@ -30,7 +31,8 @@ private:
 
 public:
     HospitalSim(SimEngine *engine, int numberOfDoctors,
-                int numberOfBeds, double duration);
+                int numberOfBeds, double duration,
+                double arrivalGap);
 
     void initialise();
     void run();

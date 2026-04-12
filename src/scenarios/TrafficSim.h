@@ -12,6 +12,7 @@ private:
     SimEngine *engine;
     int numberOfIntersections;
     double duration;
+    double carArrivalGap;
 
     DynamicArray<int> lightStates;
     DynamicArray<double> signalTimers;
@@ -29,7 +30,8 @@ private:
     int busiestIntersection;
 
 public:
-    TrafficSim(SimEngine *engine, int numberOfIntersections, double duration);
+    TrafficSim(SimEngine *engine, int numberOfIntersections,
+               double duration, double carArrivalGap);
     ~TrafficSim();
 
     void initialise();

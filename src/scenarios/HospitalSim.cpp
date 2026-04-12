@@ -10,12 +10,19 @@
 static bool hospitalSeeded = false;
 
 HospitalSim::HospitalSim(SimEngine *engine, int numberOfDoctors,
-                         int numberOfBeds, double duration)
+                         int numberOfBeds, double duration,
+                         double arrivalGap)
 {
     this->engine = engine;
     this->numberOfDoctors = numberOfDoctors;
     this->numberOfBeds = numberOfBeds;
     this->duration = duration;
+    this->arrivalGap = arrivalGap;
+
+    if (this->arrivalGap <= 0.0)
+    {
+        this->arrivalGap = 1.0;
+    }
 
     nextEntityId = 10000;
 
@@ -408,8 +415,7 @@ int HospitalSim::getRandomPriority() const
 
 double HospitalSim::getRandomArrivalGap() const
 {
-    int randomValue = 5 + (std::rand() % 16);
-    return (double)randomValue;
+    return arrivalGap;
 }
 
 double HospitalSim::getRandomServiceDuration() const
