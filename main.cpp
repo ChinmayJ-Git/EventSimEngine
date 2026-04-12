@@ -51,12 +51,11 @@ int main()
   renderer.drawStats(stats);
   window.display();
 
-  sf::Clock waitClock;
-  while (window.isOpen() && waitClock.getElapsedTime().asSeconds() < 5.0f)
+  // stay open until user closes
+  while (window.isOpen())
   {
     window.pollEvents();
   }
-  window.close();
 
   StatsCollector collector;
   if (choice == 1)
