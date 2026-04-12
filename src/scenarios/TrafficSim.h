@@ -6,7 +6,7 @@
 
 #include <string>
 
-class TrafficSim
+class TrafficSim : public EventHandler
 {
 private:
     SimEngine *engine;
@@ -37,6 +37,7 @@ public:
     void initialise();
     void run();
     void printResults();
+    void onEvent(Event* e);
 
 private:
     void buildRoadGraph();

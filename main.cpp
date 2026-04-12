@@ -12,12 +12,16 @@
 
 int main()
 {
-  Window window(1280, 720, "EventSimEngine");
+  std::cout << "==============================" << std::endl;
+  std::cout << "      EventSimEngine" << std::endl;
+  std::cout << "==============================" << std::endl;
+  std::cout << "Choose scenario:" << std::endl;
+  std::cout << "  1 = Hospital Simulation" << std::endl;
+  std::cout << "  2 = Traffic Simulation" << std::endl;
+  std::cout << "Enter choice: ";
 
-  sf::RenderWindow &renderWindow = window.getWindow();
-
-  Menu menu;
-  int choice = menu.show(renderWindow);
+  int choice = 0;
+  std::cin >> choice;
 
   int numDoctors = 3;
   int numBeds = 10;
@@ -28,71 +32,99 @@ int main()
 
   if (choice == 1)
   {
+    std::cout << std::endl;
+    std::cout << "=== HOSPITAL CONFIGURATION ===" << std::endl;
     std::cout << "Enter number of doctors (recommended: 2-5): ";
     std::cin >> numDoctors;
-
     std::cout << "Enter number of beds (recommended: 5-20): ";
     std::cin >> numBeds;
-
     std::cout << "Enter simulation duration (recommended: 200-1000): ";
     std::cin >> simDuration;
-
-    std::cout << "Enter average seconds between patient arrivals (recommended: 5-15): ";
+    std::cout << "Enter average seconds between arrivals (recommended: 5-15): ";
     std::cin >> arrivalGap;
+    std::cout << "==============================" << std::endl;
+    std::cout << "Starting hospital simulation..." << std::endl;
   }
 
   if (choice == 2)
   {
+    std::cout << std::endl;
+    std::cout << "=== TRAFFIC CONFIGURATION ===" << std::endl;
     std::cout << "Enter number of intersections (recommended: 4-8): ";
     std::cin >> numIntersections;
-
     std::cout << "Enter simulation duration (recommended: 200-1000): ";
     std::cin >> simDuration;
-
     std::cout << "Enter average seconds between car arrivals (recommended: 3-10): ";
     std::cin >> carArrivalGap;
+    std::cout << "=============================" << std::endl;
+    std::cout << "Starting traffic simulation..." << std::endl;
   }
 
-  SimEngine engine(0.0, simDuration, false);
-
-  if (choice == 1)
-  {
-    HospitalSim hospitalSim(&engine, numDoctors, numBeds, simDuration, arrivalGap);
-    hospitalSim.initialise();
-    hospitalSim.run();
-    hospitalSim.printResults();
-  }
-
-  if (choice == 2)
-  {
-    TrafficSim trafficSim(&engine, numIntersections, simDuration, carArrivalGap);
-    trafficSim.initialise();
-    trafficSim.run();
-    trafficSim.printResults();
-  }
-
-  SimulationStats stats = engine.getStats();
+  // open window after console input
+  Window window(1280, 720, "EventSimEngine");
+  sf::RenderWindow &renderWindow = window.getWindow();
   Renderer renderer(renderWindow);
 
-  window.clear();
+  // create engine
+  SimEngine engine(0.0, simDuration, false);
+
+  HospitalSim *hospitalSim = nullptr;
+  TrafficSim *trafficSim = nullptr;
+
   if (choice == 1)
   {
-    renderer.drawHospital(&engine, numDoctors);
+    hospitalSim = new HospitalSim(&engine, numDoctors, numBeds, simDuration, arrivalGap);
+    hospitalSim->initialise();
   }
+
   if (choice == 2)
   {
-    renderer.drawTraffic(&engine, numIntersections);
+    trafficSim = new TrafficSim(&engine, numIntersections, simDuration, carArrivalGap);
+    trafficSim->initialise();
   }
-  renderer.drawStats(stats);
-  window.display();
 
-  // stay open until user closes
+  // step by step simulation loop
   while (window.isOpen())
   {
+    // handle window close button
     window.pollEvents();
+
+    // process one event
+    bool moreEvents = engine.processOneEvent();
+
+    // redraw window
+    window.clear();
+    if (choice == 1)
+      renderer.drawHospital(&engine, numDoctors);
+    if (choice == 2)
+      renderer.drawTraffic(&engine, numIntersections);
+
+    SimulationStats liveStats = engine.getStats();
+    renderer.drawStats(liveStats);
+    window.display();
+
+    // pause between events — change this number to speed up or slow down
+    sf::sleep(sf::milliseconds(5));
+
+    // stop when simulation finishes
+    if (!moreEvents)
+      break;
   }
 
+  // print final results to console
+  if (choice == 1 && hospitalSim != nullptr)
+    hospitalSim->printResults();
+  if (choice == 2 && trafficSim != nullptr)
+    trafficSim->printResults();
+
+  // keep window open until user closes it
+  while (window.isOpen())
+    window.pollEvents();
+
+  // export to CSV
+  SimulationStats stats = engine.getStats();
   StatsCollector collector;
+
   if (choice == 1)
   {
     collector.totalPatients = stats.totalEntitiesCreated;
@@ -105,6 +137,7 @@ int main()
     collector.totalCarWaitTime = 0.0;
     collector.longestCarWait = 0.0;
   }
+
   if (choice == 2)
   {
     collector.totalPatients = 0;
@@ -129,6 +162,9 @@ int main()
                          collector.totalPassed,
                          collector.getAverageCarWait(),
                          collector.longestCarWait);
+
+  delete hospitalSim;
+  delete trafficSim;
 
   return 0;
 }

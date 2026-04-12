@@ -8,12 +8,19 @@ SimEngine::SimEngine(double startTime, double endTime, bool showDetails)
   engineIsRunning = false;
   verboseMode = showDetails;
   currentStats = SimulationStats();
+  scenarioHandler = nullptr;
 }
 
 // clean up memory
 SimEngine::~SimEngine()
 {
   delete simulationClock;
+}
+
+// register scenario handler
+void SimEngine::setEventHandler(EventHandler *handler)
+{
+  scenarioHandler = handler;
 }
 
 // add event to queue
@@ -49,7 +56,45 @@ SimulationStats SimEngine::getStats() const
   return currentStats;
 }
 
-// main simulation loop
+// process one event — used by step by step loop
+bool SimEngine::processOneEvent()
+{
+  if (eventQueue.isEmpty() || simulationClock->hasSimulationEnded())
+    return false;
+
+  Event *nextEvent = eventQueue.extractMinimum();
+  if (nextEvent == nullptr)
+    return false;
+
+  simulationClock->advance(nextEvent->time);
+
+  if (simulationClock->hasSimulationEnded())
+  {
+    delete nextEvent;
+    return false;
+  }
+
+  // print event to console
+  std::cout << "[t=" << nextEvent->time << "] "
+            << nextEvent->description << std::endl;
+
+  // update entity states
+  processEvent(nextEvent);
+
+  // call scenario handler so hospital/traffic logic fires
+  if (scenarioHandler != nullptr)
+    scenarioHandler->onEvent(nextEvent);
+
+  currentStats.totalEventsProcessed++;
+  delete nextEvent;
+
+  if (eventQueue.isEmpty() || simulationClock->hasSimulationEnded())
+    return false;
+
+  return true;
+}
+
+// main simulation loop — runs everything at once
 void SimEngine::run()
 {
   engineIsRunning = true;
@@ -72,15 +117,11 @@ void SimEngine::run()
       break;
     }
 
-    if (verboseMode)
-    {
-      std::cout << "Time " << nextEvent->time
-                << " | " << nextEvent->description
-                << " | Entity: " << nextEvent->entityId
-                << std::endl;
-    }
-
     processEvent(nextEvent);
+
+    if (scenarioHandler != nullptr)
+      scenarioHandler->onEvent(nextEvent);
+
     currentStats.totalEventsProcessed++;
     delete nextEvent;
   }
@@ -90,7 +131,7 @@ void SimEngine::run()
   std::cout << "Total events processed: " << currentStats.totalEventsProcessed << std::endl;
 }
 
-// handle one event
+// handle entity state changes for one event
 void SimEngine::processEvent(Event *eventToProcess)
 {
   Entity *involvedEntity = entityTable.get(eventToProcess->entityId);
@@ -141,7 +182,7 @@ void SimEngine::processEvent(Event *eventToProcess)
   }
   else if (eventToProcess->type == SIGNAL_CHECK)
   {
-    // handled by TrafficSim
+    // handled by TrafficSim via callback
   }
   else if (eventToProcess->type == TICK)
   {

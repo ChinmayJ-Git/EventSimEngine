@@ -39,8 +39,24 @@ HospitalSim::HospitalSim(SimEngine *engine, int numberOfDoctors,
     }
 }
 
+// route events to correct handler
+void HospitalSim::onEvent(Event *e)
+{
+    if (e->type == ARRIVAL)
+        handleArrival(e);
+    else if (e->type == SERVICE_START)
+        handleServiceStart(e);
+    else if (e->type == SERVICE_END)
+        handleServiceEnd(e);
+    else if (e->type == ESCALATION)
+        handleEscalation(e);
+    else if (e->type == DEPARTURE)
+        handleDeparture(e);
+}
+
 void HospitalSim::initialise()
 {
+    engine->setEventHandler(this);
     for (int i = 0; i < numberOfDoctors; i++)
     {
         int doctorId = nextEntityId;
@@ -75,14 +91,13 @@ void HospitalSim::initialise()
         firstTime = firstTime + getRandomArrivalGap();
         if (firstTime <= duration)
         {
-            queueScenarioEvent(firstTime, ARRIVAL, 0, 0, "patient arrives");
+            engine->scheduleEvent(firstTime, ARRIVAL, 0, 0, "patient arrives");
         }
     }
 }
 
 void HospitalSim::run()
 {
-    processScenarioLogic();
     engine->run();
 }
 
@@ -102,55 +117,6 @@ void HospitalSim::printResults()
     std::cout << "Longest wait: " << longestWait << std::endl;
 }
 
-void HospitalSim::queueScenarioEvent(double eventTime, EventType type, int entityId,
-                                     int locationId, const std::string &description)
-{
-    Event *localEvent = new Event(eventTime, type, entityId, locationId, description);
-    localEventQueue.insert(localEvent);
-    engine->scheduleEvent(eventTime, type, entityId, locationId, description);
-}
-
-void HospitalSim::processScenarioLogic()
-{
-    while (!localEventQueue.isEmpty())
-    {
-        Event *eventData = localEventQueue.extractMinimum();
-        if (eventData == nullptr)
-        {
-            break;
-        }
-
-        if (eventData->time > duration)
-        {
-            delete eventData;
-            break;
-        }
-
-        if (eventData->type == ARRIVAL)
-        {
-            handleArrival(eventData);
-        }
-        else if (eventData->type == SERVICE_START)
-        {
-            handleServiceStart(eventData);
-        }
-        else if (eventData->type == SERVICE_END)
-        {
-            handleServiceEnd(eventData);
-        }
-        else if (eventData->type == ESCALATION)
-        {
-            handleEscalation(eventData);
-        }
-        else if (eventData->type == DEPARTURE)
-        {
-            handleDeparture(eventData);
-        }
-
-        delete eventData;
-    }
-}
-
 void HospitalSim::handleArrival(Event *eventData)
 {
     int patientId = nextEntityId;
@@ -167,15 +133,15 @@ void HospitalSim::handleArrival(Event *eventData)
     EscalationManager::scheduleEscalation(patient, engine);
     if (patient->escalationDeadline > 0.0 && patient->escalationDeadline <= duration)
     {
-        queueScenarioEvent(patient->escalationDeadline, ESCALATION,
-                           patient->id, 0, "patient escalates");
+        engine->scheduleEvent(patient->escalationDeadline, ESCALATION,
+                              patient->id, 0, "patient escalates");
     }
 
     int doctorId = findFreeDoctor();
     if (doctorId != -1)
     {
-        queueScenarioEvent(eventData->time, SERVICE_START,
-                           patient->id, doctorId, "service starts");
+        engine->scheduleEvent(eventData->time, SERVICE_START,
+                              patient->id, doctorId, "service starts");
     }
     else
     {
@@ -185,7 +151,7 @@ void HospitalSim::handleArrival(Event *eventData)
     double nextArrival = eventData->time + getRandomArrivalGap();
     if (nextArrival <= duration)
     {
-        queueScenarioEvent(nextArrival, ARRIVAL, 0, 0, "patient arrives");
+        engine->scheduleEvent(nextArrival, ARRIVAL, 0, 0, "patient arrives");
     }
 }
 
@@ -217,8 +183,8 @@ void HospitalSim::handleServiceStart(Event *eventData)
     }
 
     double serviceDuration = getRandomServiceDuration();
-    queueScenarioEvent(eventData->time + serviceDuration, SERVICE_END,
-                       patient->id, doctor->id, "service ends");
+    engine->scheduleEvent(eventData->time + serviceDuration, SERVICE_END,
+                          patient->id, doctor->id, "service ends");
 }
 
 void HospitalSim::handleServiceEnd(Event *eventData)
@@ -233,15 +199,15 @@ void HospitalSim::handleServiceEnd(Event *eventData)
 
     if (patient != nullptr)
     {
-        queueScenarioEvent(eventData->time + 5.0, DEPARTURE,
-                           patient->id, eventData->locationId, "patient leaves");
+        engine->scheduleEvent(eventData->time + 5.0, DEPARTURE,
+                              patient->id, eventData->locationId, "patient leaves");
     }
 
     if (!waitingPatientIds.isEmpty())
     {
         int nextPatientId = waitingPatientIds.get(0);
-        queueScenarioEvent(eventData->time, SERVICE_START,
-                           nextPatientId, eventData->locationId, "service starts");
+        engine->scheduleEvent(eventData->time, SERVICE_START,
+                              nextPatientId, eventData->locationId, "service starts");
     }
 }
 
@@ -267,8 +233,8 @@ void HospitalSim::handleEscalation(Event *eventData)
         if (patient->escalationDeadline > eventData->time &&
             patient->escalationDeadline <= duration)
         {
-            queueScenarioEvent(patient->escalationDeadline, ESCALATION,
-                               patient->id, 0, "patient escalates");
+            engine->scheduleEvent(patient->escalationDeadline, ESCALATION,
+                                  patient->id, 0, "patient escalates");
         }
     }
 }

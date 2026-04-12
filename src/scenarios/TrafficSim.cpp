@@ -49,8 +49,22 @@ TrafficSim::~TrafficSim()
     }
 }
 
+// route events to correct handler
+void TrafficSim::onEvent(Event* e)
+{
+    if (e->type == ARRIVAL)
+        handleArrival(e);
+    else if (e->type == SIGNAL_CHECK)
+        handleSignalCheck(e);
+    else if (e->type == SIGNAL_CHANGE)
+        handleSignalChange(e);
+    else if (e->type == DEPARTURE)
+        handleDeparture(e);
+}
+
 void TrafficSim::initialise()
 {
+    engine->setEventHandler(this);
     buildRoadGraph();
 
     for (int i = 0; i < numberOfIntersections; i++)

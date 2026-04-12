@@ -2,12 +2,11 @@
 #define HOSPITALSIM_H
 
 #include "../core/DynamicArray.h"
-#include "../core/MinHeap.h"
 #include "../engine/SimEngine.h"
 
 #include <string>
 
-class HospitalSim
+class HospitalSim : public EventHandler
 {
 private:
     SimEngine *engine;
@@ -16,7 +15,6 @@ private:
     double duration;
     double arrivalGap;
 
-    MinHeap localEventQueue;
     DynamicArray<int> doctorIds;
     DynamicArray<int> bedIds;
     DynamicArray<int> waitingPatientIds;
@@ -37,12 +35,9 @@ public:
     void initialise();
     void run();
     void printResults();
+    void onEvent(Event *e);
 
 private:
-    void queueScenarioEvent(double eventTime, EventType type, int entityId,
-                            int locationId, const std::string &description);
-    void processScenarioLogic();
-
     void handleArrival(Event *eventData);
     void handleServiceStart(Event *eventData);
     void handleServiceEnd(Event *eventData);
