@@ -105,16 +105,17 @@ void HospitalSim::printResults()
 {
     double averageWait = 0.0;
     if (totalServed > 0)
-    {
         averageWait = totalWaitTime / totalServed;
-    }
 
-    std::cout << "Hospital results" << std::endl;
-    std::cout << "Patients total: " << totalPatients << std::endl;
-    std::cout << "Patients served: " << totalServed << std::endl;
-    std::cout << "Escalations total: " << totalEscalations << std::endl;
-    std::cout << "Average wait: " << averageWait << std::endl;
-    std::cout << "Longest wait: " << longestWait << std::endl;
+    std::cout << std::endl;
+    std::cout << "======= HOSPITAL FINAL REPORT =======" << std::endl;
+    std::cout << "Total patients arrived:   " << totalPatients << std::endl;
+    std::cout << "Patients fully served:    " << totalServed << std::endl;
+    std::cout << "Still waiting at end:     " << (totalPatients - totalServed) << std::endl;
+    std::cout << "Triage escalations fired: " << totalEscalations << std::endl;
+    std::cout << "Average wait time:        " << averageWait << " seconds" << std::endl;
+    std::cout << "Longest wait:             " << longestWait << " seconds" << std::endl;
+    std::cout << "=====================================" << std::endl;
 }
 
 void HospitalSim::handleArrival(Event *eventData)
@@ -161,48 +162,55 @@ void HospitalSim::handleServiceStart(Event *eventData)
     Entity *patient = engine->getEntity(eventData->entityId);
 
     if (doctor == nullptr || patient == nullptr)
-    {
         return;
-    }
 
+    // mark doctor busy
     doctor->state = BUSY;
+
+    // mark patient being treated
     patient->state = BUSY;
+
+    // record when service started
     patient->timeServiceStarted = eventData->time;
 
-    int waitingIndex = findWaitingIndexById(patient->id);
-    if (waitingIndex != -1)
+    // calc wait time — time from arrival to now
+    double waitTime = eventData->time - patient->timeOfArrival;
+    if (waitTime >= 0)
     {
-        double waitTime = eventData->time - patient->timeOfArrival;
         totalWaitTime = totalWaitTime + waitTime;
         if (waitTime > longestWait)
-        {
             longestWait = waitTime;
-        }
-
-        removeWaitingAt(waitingIndex);
     }
 
+    // remove from waiting list
+    int waitingIndex = findWaitingIndexById(patient->id);
+    if (waitingIndex != -1)
+        removeWaitingAt(waitingIndex);
+
+    // schedule service end
     double serviceDuration = getRandomServiceDuration();
     engine->scheduleEvent(eventData->time + serviceDuration, SERVICE_END,
                           patient->id, doctor->id, "service ends");
-}
 
+    std::cout << "  Doctor_" << (eventData->locationId - 10000 + 1)
+              << " treating " << patient->name
+              << " | waited " << (int)waitTime << "s" << std::endl;
+}
 void HospitalSim::handleServiceEnd(Event *eventData)
 {
     Entity *doctor = engine->getEntity(eventData->locationId);
     Entity *patient = engine->getEntity(eventData->entityId);
 
+    // free the doctor
     if (doctor != nullptr)
-    {
         doctor->state = IDLE;
-    }
 
+    // schedule patient departure
     if (patient != nullptr)
-    {
         engine->scheduleEvent(eventData->time + 5.0, DEPARTURE,
                               patient->id, eventData->locationId, "patient leaves");
-    }
 
+    // assign next waiting patient to THIS doctor
     if (!waitingPatientIds.isEmpty())
     {
         int nextPatientId = waitingPatientIds.get(0);
@@ -215,26 +223,41 @@ void HospitalSim::handleEscalation(Event *eventData)
 {
     Entity *patient = engine->getEntity(eventData->entityId);
     if (patient == nullptr)
-    {
         return;
-    }
+
+    // only escalate if still waiting
+    if (patient->state != WAITING)
+        return;
 
     int oldPriority = patient->priorityLevel;
-    EscalationManager::processEscalation(patient, engine);
+
+    // upgrade priority
+    if (patient->priorityLevel == 5)
+        patient->priorityLevel = 3;
+    else if (patient->priorityLevel == 3)
+        patient->priorityLevel = 1;
 
     if (patient->priorityLevel != oldPriority)
     {
         totalEscalations++;
         sortWaitingByPriority();
-    }
 
-    if (patient->state == WAITING)
-    {
-        if (patient->escalationDeadline > eventData->time &&
-            patient->escalationDeadline <= duration)
+        std::string oldName = (oldPriority == 5) ? "MINOR" : "NORMAL";
+        std::string newName = (patient->priorityLevel == 3) ? "NORMAL" : "CRITICAL";
+
+        std::cout << std::endl;
+        std::cout << "!!! TRIAGE ESCALATION !!!" << std::endl;
+        std::cout << "  " << patient->name << " waited too long" << std::endl;
+        std::cout << "  Priority: " << oldName << " -> " << newName << std::endl;
+        std::cout << std::endl;
+
+        // schedule next escalation if still not critical
+        if (patient->priorityLevel == 3)
         {
-            engine->scheduleEvent(patient->escalationDeadline, ESCALATION,
-                                  patient->id, 0, "patient escalates");
+            double nextEscalation = engine->getCurrentTime() + 120.0;
+            if (nextEscalation <= duration)
+                engine->scheduleEvent(nextEscalation, ESCALATION,
+                                      patient->id, 0, patient->name + " escalates again");
         }
     }
 }
@@ -243,13 +266,14 @@ void HospitalSim::handleDeparture(Event *eventData)
 {
     Entity *patient = engine->getEntity(eventData->entityId);
     if (patient == nullptr)
-    {
         return;
-    }
 
     patient->state = FINISHED;
     patient->timeOfDeparture = eventData->time;
     totalServed++;
+
+    std::cout << "  " << patient->name << " discharged | total served: "
+              << totalServed << std::endl;
 }
 
 int HospitalSim::findFreeDoctor() const

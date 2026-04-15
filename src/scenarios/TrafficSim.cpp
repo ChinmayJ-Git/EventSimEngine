@@ -50,7 +50,7 @@ TrafficSim::~TrafficSim()
 }
 
 // route events to correct handler
-void TrafficSim::onEvent(Event* e)
+void TrafficSim::onEvent(Event *e)
 {
     if (e->type == ARRIVAL)
         handleArrival(e);
@@ -221,8 +221,14 @@ void TrafficSim::handleSignalCheck(Event *eventData)
     {
         double timer = signalTimers.get(intersectionId);
         signalTimers.set(intersectionId, timer + 10.0);
-    }
 
+        std::cout << std::endl;
+        std::cout << "*** ADAPTIVE SIGNAL ***" << std::endl;
+        std::cout << "  Intersection " << intersectionId
+                  << " has more cars than neighbours" << std::endl;
+        std::cout << "  Green time extended by 10 seconds" << std::endl;
+        std::cout << std::endl;
+    }
     engine->scheduleEvent(eventData->time + 30.0, SIGNAL_CHECK,
                           lightEntityIds.get(intersectionId),
                           intersectionId, "signal checks");

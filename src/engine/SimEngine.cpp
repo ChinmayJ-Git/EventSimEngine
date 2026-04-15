@@ -75,8 +75,12 @@ bool SimEngine::processOneEvent()
   }
 
   // print event to console
-  std::cout << "[t=" << nextEvent->time << "] "
-            << nextEvent->description << std::endl;
+  // only print important events — skip signal checks and minor ticks
+  if (nextEvent->type != SIGNAL_CHECK && nextEvent->type != TICK)
+    {
+    std::cout << "[t=" << (int)nextEvent->time << "] "
+              << nextEvent->description << std::endl;
+    }
 
   // update entity states
   processEvent(nextEvent);

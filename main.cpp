@@ -100,11 +100,16 @@ int main()
       renderer.drawTraffic(&engine, numIntersections);
 
     SimulationStats liveStats = engine.getStats();
+    if (choice == 1 && hospitalSim != nullptr)
+    {
+    liveStats.totalWaitTime = hospitalSim->getTotalWaitTime();
+    liveStats.longestWaitTime = hospitalSim->getLongestWait();
+    liveStats.totalEntitiesFinished = hospitalSim->getTotalServed();
+    }
     renderer.drawStats(liveStats);
-    window.display();
 
     // pause between events — change this number to speed up or slow down
-    sf::sleep(sf::milliseconds(5));
+    sf::sleep(sf::milliseconds(500));
 
     // stop when simulation finishes
     if (!moreEvents)

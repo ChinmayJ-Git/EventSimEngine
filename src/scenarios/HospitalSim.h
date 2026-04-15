@@ -36,6 +36,9 @@ public:
     void run();
     void printResults();
     void onEvent(Event *e);
+    double getTotalWaitTime() const { return totalWaitTime; }
+    double getLongestWait() const { return longestWait; }
+    int getTotalServed() const { return totalServed; }
 
 private:
     void handleArrival(Event *eventData);
