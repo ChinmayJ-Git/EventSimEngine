@@ -3,79 +3,59 @@
 
 #include <string>
 
-// entity types
 enum EntityType
 {
     PATIENT,
-    DOCTOR,
-    BED,
-    CAR,
-    TRAFFIC_LIGHT,
-    GENERIC
+    DOCTOR
 };
 
-// entity states
 enum EntityState
 {
     IDLE,
-    BUSY,
     WAITING,
-    MOVING,
+    BUSY,
     FINISHED
 };
 
-// one entity in the simulation
-struct Entity
+struct Patient
 {
     int id;
-    EntityType type;
-    EntityState state;
     std::string name;
-    double timeOfArrival;
-    double timeServiceStarted;
-    double timeOfDeparture;
-    int priorityLevel;
-    int currentLocationId;
-
-    // triage escalation deadline
-    // if patient is not seen before this time, ESCALATION event fires
-    // -1 means no escalation scheduled
+    int priority;
+    double arrivalTime;
+    double serviceStartTime;
+    double departureTime;
+    EntityState state;
+    std::string assignedDoctorType;
     double escalationDeadline;
 
-    // constructor
-    Entity(int entityId, EntityType entityType, std::string entityName,
-           double arrivalTime, int priority = 5)
+    Patient()
     {
-        id = entityId;
-        type = entityType;
+        id = -1;
+        name = "";
+        priority = 3;
+        arrivalTime = 0.0;
+        serviceStartTime = -1.0;
+        departureTime = -1.0;
         state = WAITING;
-        name = entityName;
-        timeOfArrival = arrivalTime;
-        timeServiceStarted = -1.0;
-        timeOfDeparture = -1.0;
-        priorityLevel = priority;
-        currentLocationId = -1;
+        assignedDoctorType = "";
         escalationDeadline = -1.0;
     }
+};
 
-    // calc wait time
-    double getWaitTime() const
-    {
-        if (timeServiceStarted < 0)
-        {
-            return -1.0;
-        }
-        return timeServiceStarted - timeOfArrival;
-    }
+struct Doctor
+{
+    int id;
+    std::string specialization;
+    bool isAvailable;
+    int totalPatientsSeen;
 
-    // calc total time in system
-    double getTotalTimeInSystem() const
+    Doctor()
     {
-        if (timeOfDeparture < 0)
-        {
-            return -1.0;
-        }
-        return timeOfDeparture - timeOfArrival;
+        id = -1;
+        specialization = "";
+        isAvailable = true;
+        totalPatientsSeen = 0;
     }
 };
 

@@ -6,19 +6,18 @@
 
 class Window
 {
-public:
-    Window(int width = 1280, int height = 720,
-           const std::string &title = "EventSimEngine");
+private:
+    sf::RenderWindow window;
+    bool isOpen;
 
-    bool isOpen();
-    void pollEvents();
+public:
+    Window(std::string title, int width, int height);
     void clear();
     void display();
     void close();
+    bool checkOpen();
+    void pollEvents();
     sf::RenderWindow &getWindow();
-
-private:
-    sf::RenderWindow window;
 };
 
 #endif

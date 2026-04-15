@@ -1,252 +1,311 @@
 #include "Renderer.h"
 
-Renderer::Renderer(sf::RenderWindow &window)
+#include <cstdio>
+#include <iostream>
+
+Renderer::Renderer(Window *w)
 {
-    this->window = &window;
-    fontLoaded = false;
+    win = w;
+    ready = false;
+    lastWaitingCount = 0;
+    newPatientOffset = 0.0f;
+    scrollOffset = 0;
+    ready = loadFont();
 }
 
-void Renderer::setWindow(sf::RenderWindow &window)
+bool Renderer::loadFont()
 {
-    this->window = &window;
+    if (!font.loadFromFile("assets/font.ttf"))
+    {
+        std::cerr << "Error: failed to load assets/font.ttf\n";
+        return false;
+    }
+    return true;
 }
 
-void Renderer::drawHospital(SimEngine *engine, int numberOfDoctors)
+bool Renderer::isReady() const
 {
-    if (window == nullptr || engine == nullptr)
+    return ready;
+}
+
+void Renderer::drawPanelTitle(sf::RenderWindow &w, const char *text, float x, float y)
+{
+    if (font.getInfo().family.empty())
+    {
+        return;
+    }
+    sf::Text t(text, font, 28);
+    t.setFillColor(sf::Color::White);
+    t.setPosition(x, y);
+    w.draw(t);
+}
+
+void Renderer::drawPatientCircle(sf::RenderWindow &w, float x, float y, int patientId, int priority)
+{
+    sf::CircleShape c(15.0f);
+    if (priority == 1)
+    {
+        c.setFillColor(sf::Color::Red);
+    }
+    else if (priority == 2)
+    {
+        c.setFillColor(sf::Color(255, 140, 0));
+    }
+    else
+    {
+        c.setFillColor(sf::Color::Green);
+    }
+    c.setPosition(x, y);
+    w.draw(c);
+
+    if (font.getInfo().family.empty())
+    {
+        return;
+    }
+    sf::Text idText(std::to_string(patientId), font, 14);
+    idText.setFillColor(sf::Color::Black);
+    idText.setPosition(x + 7.0f, y + 5.0f);
+    w.draw(idText);
+}
+
+void Renderer::drawWaitingPanel(sf::RenderWindow &w, HospitalSim *sim)
+{
+    sf::RectangleShape panel(sf::Vector2f(400.0f, 720.0f));
+    panel.setPosition(0.0f, 0.0f);
+    panel.setFillColor(sf::Color(18, 18, 18));
+    w.draw(panel);
+    drawPanelTitle(w, "WAITING ROOM", 20.0f, 16.0f);
+
+    if (sim == 0)
     {
         return;
     }
 
-    ensureFont();
-
-    sf::RectangleShape waitingArea(sf::Vector2f(520.0f, 560.0f));
-    waitingArea.setPosition(40.0f, 80.0f);
-    waitingArea.setFillColor(sf::Color(35, 40, 55));
-    window->draw(waitingArea);
-
-    sf::RectangleShape treatmentArea(sf::Vector2f(520.0f, 560.0f));
-    treatmentArea.setPosition(620.0f, 80.0f);
-    treatmentArea.setFillColor(sf::Color(30, 55, 45));
-    window->draw(treatmentArea);
-
-    if (fontLoaded)
+    int totalWaiting = sim->getTotalWaiting();
+    if (totalWaiting > 15)
     {
-        sf::Text waitingLabel("Waiting area", font, 20);
-        waitingLabel.setFillColor(sf::Color::White);
-        waitingLabel.setPosition(60.0f, 40.0f);
-        window->draw(waitingLabel);
-
-        sf::Text treatmentLabel("Treatment area", font, 20);
-        treatmentLabel.setFillColor(sf::Color::White);
-        treatmentLabel.setPosition(640.0f, 40.0f);
-        window->draw(treatmentLabel);
+        scrollOffset = totalWaiting - 15;
+    }
+    else
+    {
+        scrollOffset = 0;
+    }
+    if (totalWaiting > lastWaitingCount)
+    {
+        newPatientOffset = -35.0f;
+    }
+    if (newPatientOffset < 0.0f)
+    {
+        newPatientOffset += 5.0f;
     }
 
-    for (int i = 0; i < numberOfDoctors; i++)
+    int ids[15];
+    int priorities[15];
+    int count = sim->getWaitingSnapshot(ids, priorities, 15, scrollOffset);
+    for (int i = 0; i < count; i++)
     {
-        sf::RectangleShape doctorShape(sf::Vector2f(48.0f, 26.0f));
-        doctorShape.setFillColor(sf::Color(70, 120, 240));
-        doctorShape.setPosition(1010.0f, 110.0f + (float)i * 60.0f);
-        window->draw(doctorShape);
+        float y = 90.0f + (float)i * 38.0f;
+        if (i == count - 1)
+        {
+            y += newPatientOffset;
+        }
+        drawPatientCircle(w, 52.0f, y, ids[i], priorities[i]);
     }
 
-    int waitingCount = 0;
-    int busyCount = 0;
-
-    for (int id = 10000; id < 26000; id++)
+    if (font.getInfo().family.empty())
     {
-        Entity *entity = engine->getEntity(id);
-        if (entity == nullptr)
-        {
-            continue;
-        }
-
-        if (entity->type != PATIENT)
-        {
-            continue;
-        }
-
-        if (entity->state == FINISHED)
-        {
-            continue;
-        }
-
-        sf::CircleShape patientShape(12.0f);
-        if (entity->priorityLevel == 1)
-        {
-            patientShape.setFillColor(sf::Color(220, 40, 40));
-        }
-        else if (entity->priorityLevel == 3)
-        {
-            patientShape.setFillColor(sf::Color(245, 200, 40));
-        }
-        else
-        {
-            patientShape.setFillColor(sf::Color(90, 210, 90));
-        }
-
-        if (entity->state == WAITING)
-        {
-            float x = 80.0f + (float)(waitingCount % 10) * 45.0f;
-            float y = 120.0f + (float)(waitingCount / 10) * 45.0f;
-            patientShape.setPosition(x, y);
-            waitingCount++;
-        }
-        else
-        {
-            float x = 660.0f + (float)(busyCount % 8) * 45.0f;
-            float y = 120.0f + (float)(busyCount / 8) * 45.0f;
-            patientShape.setPosition(x, y);
-            busyCount++;
-        }
-
-        window->draw(patientShape);
+        return;
     }
+    if (totalWaiting > 15)
+    {
+        char line[64];
+        std::snprintf(line, 64, "Showing 15 of %d", totalWaiting);
+        sf::Text t(line, font, 16);
+        t.setFillColor(sf::Color::White);
+        t.setPosition(20.0f, 680.0f);
+        w.draw(t);
+    }
+
+    lastWaitingCount = totalWaiting;
 }
 
-void Renderer::drawTraffic(SimEngine *engine, int numberOfIntersections)
+void Renderer::drawTreatmentPanel(sf::RenderWindow &w, HospitalSim *sim)
 {
-    if (window == nullptr || engine == nullptr)
+    sf::RectangleShape panel(sf::Vector2f(450.0f, 720.0f));
+    panel.setPosition(400.0f, 0.0f);
+    panel.setFillColor(sf::Color(24, 24, 24));
+    w.draw(panel);
+    drawPanelTitle(w, "TREATMENT ROOMS", 430.0f, 16.0f);
+
+    sf::Color colors[3] = {sf::Color::Blue, sf::Color::Cyan, sf::Color(160, 32, 240)};
+    for (int i = 0; i < 3; i++)
     {
-        return;
-    }
+        float x = 430.0f + (float)i * 140.0f;
+        sf::RectangleShape station(sf::Vector2f(120.0f, 220.0f));
+        station.setPosition(x, 110.0f);
+        station.setFillColor(colors[i]);
+        w.draw(station);
 
-    if (numberOfIntersections <= 0)
-    {
-        return;
-    }
-
-    const float centerX = 500.0f;
-    const float centerY = 330.0f;
-    const float radius = 210.0f;
-
-    for (int i = 0; i < numberOfIntersections; i++)
-    {
-        int next = (i + 1) % numberOfIntersections;
-        sf::Vector2f from = getRingPosition(i, numberOfIntersections, centerX, centerY, radius);
-        sf::Vector2f to = getRingPosition(next, numberOfIntersections, centerX, centerY, radius);
-
-        sf::Vertex road[] = {
-            sf::Vertex(from, sf::Color(120, 120, 120)),
-            sf::Vertex(to, sf::Color(120, 120, 120))};
-        window->draw(road, 2, sf::Lines);
-    }
-
-    for (int i = 0; i < numberOfIntersections; i++)
-    {
-        sf::Vector2f position = getRingPosition(i, numberOfIntersections, centerX, centerY, radius);
-
-        sf::RectangleShape intersectionShape(sf::Vector2f(28.0f, 28.0f));
-        intersectionShape.setFillColor(sf::Color::White);
-        intersectionShape.setPosition(position.x - 14.0f, position.y - 14.0f);
-        window->draw(intersectionShape);
-
-        int waitingCars = 0;
-        for (int id = 20000; id < 30000; id++)
+        if (!font.getInfo().family.empty())
         {
-            Entity *entity = engine->getEntity(id);
-            if (entity == nullptr)
+            sf::Text label(sim ? sim->getDoctorLabel(i) : "DOCTOR", font, 16);
+            label.setFillColor(sf::Color::White);
+            label.setPosition(x + 8.0f, 118.0f);
+            w.draw(label);
+        }
+
+        sf::RectangleShape icon(sf::Vector2f(28.0f, 28.0f));
+        icon.setPosition(x + 46.0f, 150.0f);
+        icon.setFillColor(sf::Color::White);
+        w.draw(icon);
+        sf::RectangleShape vLine(sf::Vector2f(4.0f, 18.0f));
+        sf::RectangleShape hLine(sf::Vector2f(18.0f, 4.0f));
+        vLine.setPosition(x + 58.0f, 155.0f);
+        hLine.setPosition(x + 51.0f, 162.0f);
+        vLine.setFillColor(sf::Color::Red);
+        hLine.setFillColor(sf::Color::Red);
+        w.draw(vLine);
+        w.draw(hLine);
+
+        if (sim != 0 && sim->getDoctorBusyNow(i) > 0)
+        {
+            int patientId = sim->getDoctorCurrentPatient(i);
+            drawPatientCircle(w, x + 43.0f, 225.0f, patientId, i + 1);
+            if (!font.getInfo().family.empty())
             {
-                continue;
+                char line[64];
+                std::snprintf(line, 64, "BUSY x%d", sim->getDoctorBusyNow(i));
+                sf::Text busy(line, font, 16);
+                busy.setFillColor(sf::Color::White);
+                busy.setPosition(x + 20.0f, 280.0f);
+                w.draw(busy);
             }
-
-            if (entity->type == CAR && entity->state == WAITING &&
-                entity->currentLocationId == i)
-            {
-                waitingCars++;
-            }
         }
-
-        for (int k = 0; k < waitingCars && k < 6; k++)
+        else if (!font.getInfo().family.empty())
         {
-            sf::RectangleShape carShape(sf::Vector2f(8.0f, 5.0f));
-            carShape.setFillColor(sf::Color(240, 215, 70));
-            carShape.setPosition(position.x - 12.0f + (float)(k % 3) * 9.0f,
-                                 position.y + 16.0f + (float)(k / 3) * 7.0f);
-            window->draw(carShape);
+            sf::Text freeText("AVAILABLE", font, 16);
+            freeText.setFillColor(sf::Color::Green);
+            freeText.setPosition(x + 16.0f, 255.0f);
+            w.draw(freeText);
         }
+    }
+}
 
-        int lightState = 1;
-        int phase = (int)(engine->getCurrentTime() / 30.0);
-        if (((phase + i) % 2) != 0)
+void Renderer::drawEventLogPanel(sf::RenderWindow &w, HospitalSim *sim)
+{
+    sf::RectangleShape panel(sf::Vector2f(430.0f, 360.0f));
+    panel.setPosition(850.0f, 0.0f);
+    panel.setFillColor(sf::Color(14, 14, 14));
+    w.draw(panel);
+    drawPanelTitle(w, "EVENT LOG", 870.0f, 16.0f);
+
+    if (font.getInfo().family.empty() || sim == 0)
+    {
+        return;
+    }
+
+    int lines = sim->getEventLogCount();
+    if (lines > 12)
+    {
+        lines = 12;
+    }
+    for (int i = 0; i < lines; i++)
+    {
+        sf::Text t(sim->getEventLogLine(i), font, 16);
+        int type = sim->getEventLogType(i);
+        if (type == 1)
         {
-            lightState = 0;
+            t.setFillColor(sf::Color::Cyan);
         }
-
-        sf::CircleShape lightShape(7.0f);
-        if (lightState == 1)
+        else if (type == 2)
         {
-            lightShape.setFillColor(sf::Color(70, 220, 80));
+            t.setFillColor(sf::Color::Yellow);
+        }
+        else if (type == 3)
+        {
+            t.setFillColor(sf::Color::Green);
         }
         else
         {
-            lightShape.setFillColor(sf::Color(220, 60, 60));
+            t.setFillColor(sf::Color::White);
         }
-        lightShape.setPosition(position.x + 16.0f, position.y - 20.0f);
-        window->draw(lightShape);
+        t.setPosition(860.0f, 64.0f + (float)i * 24.0f);
+        w.draw(t);
     }
 }
 
-void Renderer::drawStats(SimulationStats &stats)
+void Renderer::drawStatsPanel(sf::RenderWindow &w, HospitalSim *sim)
 {
-    if (window == nullptr)
+    sf::RectangleShape panel(sf::Vector2f(430.0f, 360.0f));
+    panel.setPosition(850.0f, 360.0f);
+    panel.setFillColor(sf::Color(20, 20, 20));
+    w.draw(panel);
+    drawPanelTitle(w, "LIVE STATS", 870.0f, 376.0f);
+
+    if (font.getInfo().family.empty() || sim == 0)
     {
         return;
     }
 
-    ensureFont();
-    if (!fontLoaded)
+    char lines[8][96];
+    std::snprintf(lines[0], 96, "Total Patients: %d", sim->getTotalPatients());
+    std::snprintf(lines[1], 96, "Currently Waiting: %d", sim->getTotalWaiting());
+    std::snprintf(lines[2], 96, "Avg Wait Time: %.1f s", sim->getAverageWait());
+    std::snprintf(lines[3], 96, "Escalations: %d", sim->getEscalationCount());
+    std::snprintf(lines[4], 96, "Emergency Doctor: %d%% busy", (int)(sim->getDoctorUtilisation(0) + 0.5));
+    std::snprintf(lines[5], 96, "General Doctor: %d%% busy", (int)(sim->getDoctorUtilisation(1) + 0.5));
+    std::snprintf(lines[6], 96, "Specialist Doctor: %d%% busy", (int)(sim->getDoctorUtilisation(2) + 0.5));
+    std::snprintf(lines[7], 96, "Current Sim Time: %.1f s", sim->getCurrentSimTime());
+
+    for (int i = 0; i < 8; i++)
     {
-        return;
+        sf::Text t(lines[i], font, 20);
+        t.setFillColor(sf::Color::White);
+        t.setPosition(862.0f, 430.0f + (float)i * 34.0f);
+        w.draw(t);
     }
-
-    sf::RectangleShape panel(sf::Vector2f(500.0f, 140.0f));
-    panel.setPosition(20.0f, 560.0f);
-    panel.setFillColor(sf::Color(15, 15, 20, 210));
-    window->draw(panel);
-
-    std::string textValue = "events: " + std::to_string(stats.totalEventsProcessed);
-    textValue = textValue + "  finished: " + std::to_string(stats.totalEntitiesFinished);
-    textValue = textValue + "\navg wait: " + std::to_string(stats.getAverageWaitTime());
-    textValue = textValue + "  longest: " + std::to_string(stats.longestWaitTime);
-
-    sf::Text statsText(textValue, font, 18);
-    statsText.setFillColor(sf::Color::White);
-    statsText.setPosition(36.0f, 584.0f);
-    window->draw(statsText);
 }
 
-void Renderer::ensureFont()
+void Renderer::drawAll(HospitalSim *sim)
 {
-    if (fontLoaded)
+    if (!ready || win == 0 || !win->checkOpen())
     {
         return;
     }
-
-    if (font.loadFromFile("C:/Windows/Fonts/arial.ttf"))
-    {
-        fontLoaded = true;
-        return;
-    }
-
-    if (font.loadFromFile("C:/SFML/examples/shader/resources/sansation.ttf"))
-    {
-        fontLoaded = true;
-        return;
-    }
-
-    fontLoaded = false;
+    sf::RenderWindow &w = win->getWindow();
+    drawWaitingPanel(w, sim);
+    drawTreatmentPanel(w, sim);
+    drawEventLogPanel(w, sim);
+    drawStatsPanel(w, sim);
 }
 
-sf::Vector2f Renderer::getRingPosition(int index, int total,
-                                       float centerX, float centerY,
-                                       float radius) const
+void Renderer::drawCompleteOverlay()
 {
-    float ratio = (float)index / (float)total;
-    float angle = ratio * 6.2831853f;
+    if (!ready || win == 0 || !win->checkOpen())
+    {
+        return;
+    }
 
-    float x = centerX + std::cos(angle) * radius;
-    float y = centerY + std::sin(angle) * radius;
-    return sf::Vector2f(x, y);
+    sf::RenderWindow &w = win->getWindow();
+    sf::RectangleShape shade(sf::Vector2f(1280.0f, 720.0f));
+    shade.setPosition(0.0f, 0.0f);
+    shade.setFillColor(sf::Color(0, 0, 0, 110));
+    w.draw(shade);
+
+    sf::RectangleShape card(sf::Vector2f(640.0f, 180.0f));
+    card.setPosition(320.0f, 260.0f);
+    card.setFillColor(sf::Color(22, 26, 38));
+    card.setOutlineThickness(3.0f);
+    card.setOutlineColor(sf::Color(64, 220, 120));
+    w.draw(card);
+
+    sf::Text title("SIMULATION COMPLETE", font, 48);
+    title.setFillColor(sf::Color::White);
+    title.setPosition(360.0f, 300.0f);
+    w.draw(title);
+
+    sf::Text hint("Close the window to exit", font, 24);
+    hint.setFillColor(sf::Color(200, 200, 200));
+    hint.setPosition(500.0f, 370.0f);
+    w.draw(hint);
 }

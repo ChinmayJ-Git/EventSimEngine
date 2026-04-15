@@ -1,217 +1,120 @@
 #include "SimEngine.h"
-#include <iostream>
 
-// set up engine
-SimEngine::SimEngine(double startTime, double endTime, bool showDetails)
+#include <windows.h>
+
+SimEngine::SimEngine(double endTime)
+    : clock(endTime)
 {
-  simulationClock = new SimClock(startTime, endTime);
-  engineIsRunning = false;
-  verboseMode = showDetails;
-  currentStats = SimulationStats();
-  scenarioHandler = nullptr;
+  nextEventId = 1;
+  nextPatientId = 1;
+  eventHandler = 0;
+  eventDelayMs = 500;
 }
 
-// clean up memory
-SimEngine::~SimEngine()
-{
-  delete simulationClock;
-}
-
-// register scenario handler
 void SimEngine::setEventHandler(EventHandler *handler)
 {
-  scenarioHandler = handler;
+  eventHandler = handler;
 }
 
-// add event to queue
-void SimEngine::scheduleEvent(double eventTime, EventType type, int entityId,
-                              int locationId, std::string description)
+void SimEngine::setFastMode(bool fastMode)
 {
-  Event *newEvent = new Event(eventTime, type, entityId, locationId, description);
-  eventQueue.insert(newEvent);
+  eventDelayMs = fastMode ? 100 : 500;
 }
-
-// register entity
-void SimEngine::addEntity(Entity *newEntity)
+void SimEngine::scheduleEvent(EventType type, double time, int patientId, std::string doctorType)
 {
-  entityTable.insert(newEntity->id, newEntity);
-  currentStats.totalEntitiesCreated++;
+  Event *e = new Event();
+  e->id = nextEventId;
+  nextEventId++;
+  e->type = type;
+  e->time = time;
+  e->patientId = patientId;
+  e->doctorType = doctorType;
+  eventQueue.insert(e);
 }
-
-// find entity by id
-Entity *SimEngine::getEntity(int entityId)
+void SimEngine::addPatient(Patient *p)
 {
-  return entityTable.get(entityId);
+  if (p == 0)
+  {
+    return;
+  }
+  if (p->id < 0)
+  {
+    p->id = nextPatientId;
+    nextPatientId++;
+  }
+  entityTable.insert(p->id, p);
+}
+Patient *SimEngine::getPatient(int id)
+{
+  return entityTable.get(id);
 }
 
-// current sim time
 double SimEngine::getCurrentTime() const
 {
-  return simulationClock->getCurrentTime();
+  return clock.getCurrentTime();
 }
 
-// return stats
-SimulationStats SimEngine::getStats() const
-{
-  return currentStats;
-}
-
-// process one event — used by step by step loop
-bool SimEngine::processOneEvent()
-{
-  if (eventQueue.isEmpty() || simulationClock->hasSimulationEnded())
-    return false;
-
-  Event *nextEvent = eventQueue.extractMinimum();
-  if (nextEvent == nullptr)
-    return false;
-
-  simulationClock->advance(nextEvent->time);
-
-  if (simulationClock->hasSimulationEnded())
-  {
-    delete nextEvent;
-    return false;
-  }
-
-  // print event to console
-  // only print important events — skip signal checks and minor ticks
-  if (nextEvent->type != SIGNAL_CHECK && nextEvent->type != TICK)
-    {
-    std::cout << "[t=" << (int)nextEvent->time << "] "
-              << nextEvent->description << std::endl;
-    }
-
-  // update entity states
-  processEvent(nextEvent);
-
-  // call scenario handler so hospital/traffic logic fires
-  if (scenarioHandler != nullptr)
-    scenarioHandler->onEvent(nextEvent);
-
-  currentStats.totalEventsProcessed++;
-  delete nextEvent;
-
-  if (eventQueue.isEmpty() || simulationClock->hasSimulationEnded())
-    return false;
-
-  return true;
-}
-
-// main simulation loop — runs everything at once
 void SimEngine::run()
 {
-  engineIsRunning = true;
-
-  std::cout << "Simulation started." << std::endl;
-  std::cout << "Running until time: " << simulationClock->getEndTime() << std::endl;
-
-  while (!eventQueue.isEmpty() && !simulationClock->hasSimulationEnded())
+  while (!clock.hasSimulationEnded() && !eventQueue.isEmpty())
   {
-    Event *nextEvent = eventQueue.extractMinimum();
-
-    if (nextEvent == nullptr)
-      break;
-
-    simulationClock->advance(nextEvent->time);
-
-    if (simulationClock->hasSimulationEnded())
+    Event *e = eventQueue.extractMinimum();
+    if (e == 0)
     {
-      delete nextEvent;
       break;
     }
-
-    processEvent(nextEvent);
-
-    if (scenarioHandler != nullptr)
-      scenarioHandler->onEvent(nextEvent);
-
-    currentStats.totalEventsProcessed++;
-    delete nextEvent;
-  }
-
-  engineIsRunning = false;
-  std::cout << "Simulation complete." << std::endl;
-  std::cout << "Total events processed: " << currentStats.totalEventsProcessed << std::endl;
-}
-
-// handle entity state changes for one event
-void SimEngine::processEvent(Event *eventToProcess)
-{
-  Entity *involvedEntity = entityTable.get(eventToProcess->entityId);
-
-  if (eventToProcess->type == ARRIVAL)
-  {
-    if (involvedEntity != nullptr)
-      involvedEntity->state = WAITING;
-  }
-  else if (eventToProcess->type == SERVICE_START)
-  {
-    if (involvedEntity != nullptr)
+    clock.advance(e->time);
+    processEvent(e);
+    if (eventHandler != 0)
     {
-      involvedEntity->state = BUSY;
-      involvedEntity->timeServiceStarted = eventToProcess->time;
-
-      double waitTime = involvedEntity->getWaitTime();
-      if (waitTime >= 0)
-      {
-        currentStats.totalWaitTime += waitTime;
-
-        if (waitTime > currentStats.longestWaitTime)
-          currentStats.longestWaitTime = waitTime;
-
-        if (waitTime < currentStats.shortestWaitTime)
-          currentStats.shortestWaitTime = waitTime;
-      }
+      eventHandler->onEvent(e);
     }
-  }
-  else if (eventToProcess->type == DEPARTURE)
-  {
-    if (involvedEntity != nullptr)
-    {
-      involvedEntity->state = FINISHED;
-      involvedEntity->timeOfDeparture = eventToProcess->time;
-      currentStats.totalEntitiesFinished++;
-    }
-  }
-  else if (eventToProcess->type == ESCALATION)
-  {
-    if (involvedEntity != nullptr && involvedEntity->state == WAITING)
-    {
-      if (involvedEntity->priorityLevel == 5)
-        involvedEntity->priorityLevel = 3;
-      else if (involvedEntity->priorityLevel == 3)
-        involvedEntity->priorityLevel = 1;
-    }
-  }
-  else if (eventToProcess->type == SIGNAL_CHECK)
-  {
-    // handled by TrafficSim via callback
-  }
-  else if (eventToProcess->type == TICK)
-  {
-    // periodic tick
+    delete e;
+    Sleep((DWORD)eventDelayMs);
   }
 }
-
-// reset for another run
-void SimEngine::reset()
+void SimEngine::processEvent(Event *e)
 {
-  simulationClock->reset();
-  currentStats = SimulationStats();
-  engineIsRunning = false;
-}
+  if (e == 0)
+  {
+    return;
+  }
 
-// print results
-void SimEngine::printStats() const
-{
-  std::cout << std::endl;
-  std::cout << "       SIMULATION RESULTS" << std::endl;
-  std::cout << "Scenario: " << currentStats.scenarioName << std::endl;
-  std::cout << "Total entities created:   " << currentStats.totalEntitiesCreated << std::endl;
-  std::cout << "Total entities finished:  " << currentStats.totalEntitiesFinished << std::endl;
-  std::cout << "Total events processed:   " << currentStats.totalEventsProcessed << std::endl;
-  std::cout << "Average wait time:        " << currentStats.getAverageWaitTime() << " seconds" << std::endl;
-  std::cout << "Longest wait time:        " << currentStats.longestWaitTime << " seconds" << std::endl;
-  std::cout << std::endl;
+  switch (e->type)
+  {
+  case ARRIVAL:
+  {
+    Patient *p = getPatient(e->patientId);
+    if (p != 0)
+    {
+      p->state = WAITING;
+    }
+    break;
+  }
+  case SERVICE_START:
+  {
+    Patient *p = getPatient(e->patientId);
+    if (p != 0)
+    {
+      p->state = BUSY;
+      p->serviceStartTime = e->time;
+      p->assignedDoctorType = e->doctorType;
+    }
+    break;
+  }
+  case SERVICE_END:
+  {
+    Patient *p = getPatient(e->patientId);
+    if (p != 0)
+    {
+      p->state = FINISHED;
+      p->departureTime = e->time;
+    }
+    break;
+  }
+  case ESCALATION:
+  {
+    break;
+  }
+  }
 }

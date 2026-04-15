@@ -1,159 +1,69 @@
 #ifndef STATSCOLLECTOR_H
 #define STATSCOLLECTOR_H
 
-#include "../core/DynamicArray.h"
-
 #include <iostream>
 
 class StatsCollector
 {
-public:
-  int totalPatients;
-  int totalServed;
-  int totalEscalations;
-  double totalWaitTime;
-  double longestWait;
-  int totalCars;
-  int totalPassed;
-  double totalCarWaitTime;
-  double longestCarWait;
-
 private:
-  DynamicArray<int> historyTotalPatients;
-  DynamicArray<int> historyTotalServed;
-  DynamicArray<int> historyTotalEscalations;
-  DynamicArray<double> historyAveragePatientWait;
-  DynamicArray<double> historyLongestWait;
-  DynamicArray<int> historyTotalCars;
-  DynamicArray<int> historyTotalPassed;
-  DynamicArray<double> historyAverageCarWait;
-  DynamicArray<double> historyLongestCarWait;
+  double avgWaitTimes[10];
+  double longestWaits[10];
+  int escalationCounts[10];
+  double doctorUtilisation[3][10];
+  int totalPatientCounts[10];
+  int runCount;
 
 public:
   StatsCollector()
   {
-    clearCurrentRun();
-  }
-
-  void recordPatientWait(double waitTime)
-  {
-    totalWaitTime = totalWaitTime + waitTime;
-    if (waitTime > longestWait)
+    runCount = 0;
+    for (int i = 0; i < 10; i++)
     {
-      longestWait = waitTime;
+      avgWaitTimes[i] = 0.0;
+      longestWaits[i] = 0.0;
+      escalationCounts[i] = 0;
+      totalPatientCounts[i] = 0;
+      doctorUtilisation[0][i] = 0.0;
+      doctorUtilisation[1][i] = 0.0;
+      doctorUtilisation[2][i] = 0.0;
     }
   }
 
-  void recordEscalation()
+  void recordRun(double avgWait, double longestWait, int escalations,
+                 int totalPatients, double utilDoc1, double utilDoc2, double utilDoc3)
   {
-    totalEscalations++;
+    if (runCount >= 10)
+    {
+      return;
+    }
+    avgWaitTimes[runCount] = avgWait;
+    longestWaits[runCount] = longestWait;
+    escalationCounts[runCount] = escalations;
+    totalPatientCounts[runCount] = totalPatients;
+    doctorUtilisation[0][runCount] = utilDoc1;
+    doctorUtilisation[1][runCount] = utilDoc2;
+    doctorUtilisation[2][runCount] = utilDoc3;
+    runCount++;
   }
 
-  void recordPatientServed()
+  void printComparison()
   {
-    totalServed++;
-    if (totalServed > totalPatients)
+    std::cout << "Run comparison" << std::endl;
+    for (int i = 0; i < runCount; i++)
     {
-      totalPatients = totalServed;
+      std::cout << "Run " << (i + 1)
+                << " | Avg " << avgWaitTimes[i]
+                << " | Longest " << longestWaits[i]
+                << " | Esc " << escalationCounts[i]
+                << " | Patients " << totalPatientCounts[i]
+                << " | U1 " << doctorUtilisation[0][i]
+                << " | U2 " << doctorUtilisation[1][i]
+                << " | U3 " << doctorUtilisation[2][i]
+                << std::endl;
     }
   }
 
-  void recordCarWait(double waitTime)
-  {
-    totalCarWaitTime = totalCarWaitTime + waitTime;
-    if (waitTime > longestCarWait)
-    {
-      longestCarWait = waitTime;
-    }
-  }
-
-  void recordCarPassed()
-  {
-    totalPassed++;
-    if (totalPassed > totalCars)
-    {
-      totalCars = totalPassed;
-    }
-  }
-
-  void reset()
-  {
-    bool hasData = false;
-    if (totalPatients > 0 || totalServed > 0 || totalEscalations > 0)
-    {
-      hasData = true;
-    }
-    if (totalCars > 0 || totalPassed > 0)
-    {
-      hasData = true;
-    }
-    if (totalWaitTime > 0.0 || totalCarWaitTime > 0.0)
-    {
-      hasData = true;
-    }
-
-    if (hasData)
-    {
-      historyTotalPatients.pushBack(totalPatients);
-      historyTotalServed.pushBack(totalServed);
-      historyTotalEscalations.pushBack(totalEscalations);
-      historyAveragePatientWait.pushBack(getAveragePatientWait());
-      historyLongestWait.pushBack(longestWait);
-      historyTotalCars.pushBack(totalCars);
-      historyTotalPassed.pushBack(totalPassed);
-      historyAverageCarWait.pushBack(getAverageCarWait());
-      historyLongestCarWait.pushBack(longestCarWait);
-    }
-
-    clearCurrentRun();
-  }
-
-  double getAveragePatientWait() const
-  {
-    if (totalServed == 0)
-    {
-      return 0.0;
-    }
-    return totalWaitTime / (double)totalServed;
-  }
-
-  double getAverageCarWait() const
-  {
-    if (totalPassed == 0)
-    {
-      return 0.0;
-    }
-    return totalCarWaitTime / (double)totalPassed;
-  }
-
-  void printSummary() const
-  {
-    std::cout << "Stats summary" << std::endl;
-    std::cout << "Patients total: " << totalPatients << std::endl;
-    std::cout << "Patients served: " << totalServed << std::endl;
-    std::cout << "Escalations total: " << totalEscalations << std::endl;
-    std::cout << "Average patient wait: " << getAveragePatientWait() << std::endl;
-    std::cout << "Longest patient wait: " << longestWait << std::endl;
-    std::cout << "Cars total: " << totalCars << std::endl;
-    std::cout << "Cars passed: " << totalPassed << std::endl;
-    std::cout << "Average car wait: " << getAverageCarWait() << std::endl;
-    std::cout << "Longest car wait: " << longestCarWait << std::endl;
-    std::cout << "Stored runs: " << historyTotalPatients.size() << std::endl;
-  }
-
-private:
-  void clearCurrentRun()
-  {
-    totalPatients = 0;
-    totalServed = 0;
-    totalEscalations = 0;
-    totalWaitTime = 0.0;
-    longestWait = 0.0;
-    totalCars = 0;
-    totalPassed = 0;
-    totalCarWaitTime = 0.0;
-    longestCarWait = 0.0;
-  }
+  int getRunCount() { return runCount; }
 };
 
 #endif

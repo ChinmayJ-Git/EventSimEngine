@@ -1,5 +1,3 @@
-// This File manages the virtual time in the simulation.
-
 #ifndef SIMCLOCK_H
 #define SIMCLOCK_H
 
@@ -7,80 +5,29 @@ class SimClock
 {
 private:
   double currentTime;
-  double startTime;
   double endTime;
-  bool isStoppedEarly;
+  double startTime;
 
 public:
-  // This function initialises the clock with a start and end time
-  SimClock(double simulationStartTime, double simulationEndTime)
+  SimClock(double endTimeValue, double startTimeValue = 0.0)
   {
-    currentTime = simulationStartTime;
-    startTime = simulationStartTime;
-    endTime = simulationEndTime;
-    isStoppedEarly = false;
+    startTime = startTimeValue;
+    currentTime = startTimeValue;
+    endTime = endTimeValue;
   }
 
-  // This function jumps the clock to the time of the next event
-  void advance(double newTime)
+  void advance(double t)
   {
-    if (newTime > currentTime)
+    if (t > currentTime)
     {
-      currentTime = newTime;
+      currentTime = t;
     }
   }
 
-  // This function returns the current simulation time
-  double getCurrentTime() const
-  {
-    return currentTime;
-  }
-
-  double getStartTime() const
-  {
-    return startTime;
-  }
-
-  double getEndTime() const
-  {
-    return endTime;
-  }
-
-  // This function checks if we have passed the end time
-  bool hasSimulationEnded() const
-  {
-    if (currentTime >= endTime)
-    {
-      return true;
-    }
-
-    if (isStoppedEarly)
-    {
-      return true;
-    }
-
-    return false;
-  }
-
-  // This function forces the simulation to stop
-  void stopEarly()
-  {
-    isStoppedEarly = true;
-  }
-
-  // This function resets everything so we can run again
-  void reset()
-  {
-    currentTime = startTime;
-    isStoppedEarly = false;
-  }
-
-  // This function calculates time elapsed since simulation began
-
-  double getElapsedTime() const
-  {
-    return currentTime - startTime;
-  }
+  void reset() { currentTime = startTime; }
+  bool hasSimulationEnded() const { return currentTime >= endTime; }
+  double getCurrentTime() const { return currentTime; }
+  double getEndTime() const { return endTime; }
 };
 
 #endif

@@ -1,45 +1,27 @@
 #ifndef HASHMAP_H
 #define HASHMAP_H
 
-#include "LinkedList.h"
 #include "../engine/Entity.h"
-
-struct HashEntry
-{
-    int key;
-    Entity *value;
-
-    HashEntry()
-    {
-        key = 0;
-        value = nullptr;
-    }
-
-    HashEntry(int newKey, Entity *newValue)
-    {
-        key = newKey;
-        value = newValue;
-    }
-
-    bool operator==(const HashEntry &other) const
-    {
-        return key == other.key;
-    }
-};
 
 class HashMap
 {
 private:
-    static const int TABLE_SIZE = 101;
-    LinkedList<HashEntry> buckets[TABLE_SIZE];
-    int count;
+    struct Entry
+    {
+        int key;
+        Patient *patient;
+        Entry *next;
+        Entry(int k, Patient *p) : key(k), patient(p), next(0) {}
+    };
+
+    Entry *buckets[101];
 
     int hash(int key) const
     {
-        int index = key % TABLE_SIZE;
+        int index = key % 101;
         if (index < 0)
         {
-            index = index + TABLE_SIZE;
+            index += 101;
         }
         return index;
     }
@@ -47,66 +29,87 @@ private:
 public:
     HashMap()
     {
-        count = 0;
+        for (int i = 0; i < 101; i++)
+        {
+            buckets[i] = 0;
+        }
     }
 
-    void insert(int key, Entity *value)
+    ~HashMap()
+    {
+        for (int i = 0; i < 101; i++)
+        {
+            Entry *cur = buckets[i];
+            while (cur != 0)
+            {
+                Entry *next = cur->next;
+                delete cur;
+                cur = next;
+            }
+            buckets[i] = 0;
+        }
+    }
+
+    void insert(int key, Patient *patient)
     {
         int index = hash(key);
-        ListNode<HashEntry> *currentNode = buckets[index].getHead();
-
-        while (currentNode != nullptr)
+        Entry *cur = buckets[index];
+        while (cur != 0)
         {
-            if (currentNode->data.key == key)
+            if (cur->key == key)
             {
-                currentNode->data.value = value;
+                cur->patient = patient;
                 return;
             }
-            currentNode = currentNode->next;
+            cur = cur->next;
         }
-
-        HashEntry newEntry(key, value);
-        buckets[index].pushBack(newEntry);
-        count++;
+        Entry *node = new Entry(key, patient);
+        node->next = buckets[index];
+        buckets[index] = node;
     }
 
-    Entity *get(int key) const
+    Patient *get(int key) const
     {
-        int index = hash(key);
-        ListNode<HashEntry> *currentNode = buckets[index].getHead();
-
-        while (currentNode != nullptr)
+        Entry *cur = buckets[hash(key)];
+        while (cur != 0)
         {
-            if (currentNode->data.key == key)
+            if (cur->key == key)
             {
-                return currentNode->data.value;
+                return cur->patient;
             }
-            currentNode = currentNode->next;
+            cur = cur->next;
         }
-
-        return nullptr;
+        return 0;
     }
 
     void remove(int key)
     {
         int index = hash(key);
-        HashEntry target(key, nullptr);
-
-        if (buckets[index].contains(target))
+        Entry *cur = buckets[index];
+        Entry *prev = 0;
+        while (cur != 0)
         {
-            buckets[index].remove(target);
-            count--;
+            if (cur->key == key)
+            {
+                if (prev == 0)
+                {
+                    buckets[index] = cur->next;
+                }
+                else
+                {
+                    prev->next = cur->next;
+                }
+                delete cur;
+                return;
+            }
+            prev = cur;
+            cur = cur->next;
         }
     }
 
     bool contains(int key) const
     {
-        return get(key) != nullptr;
-    }
-
-    int getCount() const
-    {
-        return count;
+        return get(key) != 0;
     }
 };
 

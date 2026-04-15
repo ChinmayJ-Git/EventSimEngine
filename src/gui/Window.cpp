@@ -1,14 +1,26 @@
 #include "Window.h"
 
-Window::Window(int width, int height, const std::string &title)
-    : window(sf::VideoMode((unsigned int)width, (unsigned int)height), title)
+Window::Window(std::string title, int width, int height)
+    : window(sf::VideoMode(1280, 720), title)
 {
-    window.setFramerateLimit(60);
+    (void)width;
+    (void)height;
+    isOpen = true;
 }
 
-bool Window::isOpen()
+void Window::clear() { window.clear(sf::Color::Black); }
+void Window::display() { window.display(); }
+
+void Window::close()
 {
-    return window.isOpen();
+    window.close();
+    isOpen = false;
+}
+
+bool Window::checkOpen()
+{
+    isOpen = window.isOpen();
+    return isOpen;
 }
 
 void Window::pollEvents()
@@ -18,24 +30,9 @@ void Window::pollEvents()
     {
         if (event.type == sf::Event::Closed)
         {
-            window.close();
+            close();
         }
     }
-}
-
-void Window::clear()
-{
-    window.clear(sf::Color(18, 22, 30));
-}
-
-void Window::display()
-{
-    window.display();
-}
-
-void Window::close()
-{
-    window.close();
 }
 
 sf::RenderWindow &Window::getWindow()

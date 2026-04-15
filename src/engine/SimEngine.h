@@ -1,88 +1,42 @@
 #ifndef SIMENGINE_H
 #define SIMENGINE_H
 
-#include "../core/HashMap.h"
 #include "../core/MinHeap.h"
-#include "Entity.h"
-#include "Event.h"
+#include "../core/HashMap.h"
 #include "SimClock.h"
+#include "Event.h"
+#include "Entity.h"
 
 #include <string>
 
-// simulation statistics
-struct SimulationStats
-{
-    int totalEntitiesCreated;
-    int totalEntitiesFinished;
-    int totalEventsProcessed;
-    double totalWaitTime;
-    double longestWaitTime;
-    double shortestWaitTime;
-    std::string scenarioName;
-
-    SimulationStats()
-    {
-        totalEntitiesCreated = 0;
-        totalEntitiesFinished = 0;
-        totalEventsProcessed = 0;
-        totalWaitTime = 0.0;
-        longestWaitTime = 0.0;
-        shortestWaitTime = 999999.0;
-        scenarioName = "Unknown";
-    }
-
-    double getAverageWaitTime() const
-    {
-        if (totalEntitiesFinished == 0)
-            return 0.0;
-        return totalWaitTime / totalEntitiesFinished;
-    }
-};
-
-// callback interface — scenarios implement this
 class EventHandler
 {
 public:
-    virtual void onEvent(Event* e) = 0;
-    virtual ~EventHandler() {}
+  virtual void onEvent(Event *e) = 0;
+  virtual ~EventHandler() {}
 };
 
 class SimEngine
 {
 private:
-    MinHeap eventQueue;
-    HashMap entityTable;
-    SimClock* simulationClock;
-    SimulationStats currentStats;
-    bool engineIsRunning;
-    bool verboseMode;
-
-    // scenario callback — called for every event
-    EventHandler* scenarioHandler;
+  MinHeap eventQueue;
+  HashMap entityTable;
+  SimClock clock;
+  int nextEventId;
+  int nextPatientId;
+  EventHandler *eventHandler;
+  int eventDelayMs;
 
 public:
-    SimEngine(double startTime, double endTime, bool showDetails = false);
-    ~SimEngine();
-
-    // register scenario handler
-    void setEventHandler(EventHandler* handler);
-
-    void scheduleEvent(double eventTime, EventType type, int entityId,
-                       int locationId, std::string description = "");
-
-    void addEntity(Entity* newEntity);
-    Entity* getEntity(int entityId);
-
-    void run();
-    bool processOneEvent();
-    void reset();
-
-    SimulationStats getStats() const;
-    double getCurrentTime() const;
-    void printStats() const;
-
-private:
-    void processEvent(Event* eventToProcess);
+  SimEngine(double endTime);
+  void setEventHandler(EventHandler *handler);
+  void setFastMode(bool fastMode);
+  void scheduleEvent(EventType type, double time, int patientId, std::string doctorType);
+  void addPatient(Patient *p);
+  Patient *getPatient(int id);
+  double getCurrentTime() const;
+  void run();
+  void processEvent(Event *e);
 };
 
 #endif

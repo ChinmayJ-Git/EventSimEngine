@@ -1,118 +1,83 @@
 #ifndef DYNAMICARRAY_H
 #define DYNAMICARRAY_H
 
-#include <iostream>
-
 template <typename T>
 class DynamicArray
 {
-
 private:
     T *data;
-    int currentSize;
-    int currentCapacity;
+    int count;
+    int capacity;
 
-    void resize()
+    // grow when full
+    void grow()
     {
-        int newCapacity = currentCapacity * 2;
-        T *newData = new T[newCapacity];
-        for (int i = 0; i < currentSize; i++)
+        capacity = capacity * 2;
+        T *newData = new T[capacity];
+        for (int i = 0; i < count; i++)
         {
             newData[i] = data[i];
         }
         delete[] data;
         data = newData;
-        currentCapacity = newCapacity;
     }
 
 public:
     DynamicArray()
     {
-        currentCapacity = 4;
-        currentSize = 0;
-        data = new T[currentCapacity];
+        capacity = 10;
+        count = 0;
+        data = new T[capacity];
     }
 
-    ~DynamicArray()
-    {
-        delete[] data;
-    }
+    ~DynamicArray() { delete[] data; }
 
-    void pushBack(T newItem)
+    void add(T item)
     {
-        if (currentSize == currentCapacity)
+        if (count == capacity)
         {
-            resize();
+            grow();
         }
-        data[currentSize] = newItem;
-        currentSize++;
-    }
-
-    void popBack()
-    {
-        if (currentSize == 0)
-        {
-            std::cout << "Array is empty. Nothing to remove." << std::endl;
-            return;
-        }
-        currentSize--;
+        data[count] = item;
+        count++;
     }
 
     T get(int index) const
     {
-        if (index < 0 || index >= currentSize)
+        if (index < 0 || index >= count)
         {
-            std::cout << "Invalid index: " << index << std::endl;
-            return data[0];
+            return T();
         }
         return data[index];
     }
 
-    void set(int index, T newItem)
+    void set(int index, T item)
     {
-        if (index < 0 || index >= currentSize)
+        if (index < 0 || index >= count)
         {
-            std::cout << "Invalid index: " << index << std::endl;
             return;
         }
-        data[index] = newItem;
+        data[index] = item;
     }
 
-    int size() const
+    // shift items left
+    void remove(int index)
     {
-        return currentSize;
-    }
-
-    bool isEmpty() const
-    {
-        if (currentSize == 0)
+        if (index < 0 || index >= count)
         {
-            return true;
+            return;
         }
-        else
+        for (int i = index; i < count - 1; i++)
         {
-            return false;
+            data[i] = data[i + 1];
         }
+        count--;
     }
 
-    void print()
-    {
-        std::cout << "Array contents: ";
-        for (int i = 0; i < currentSize; i++)
-        {
-            std::cout << data[i];
-            if (i < currentSize - 1)
-            {
-                std::cout << ", ";
-            }
-        }
-        std::cout << std::endl;
-    }
+    int size() const { return count; }
 
-    void clear()
-    {
-        currentSize = 0;
-    }
+    // reset used length
+    void clear() { count = 0; }
 };
 
 #endif

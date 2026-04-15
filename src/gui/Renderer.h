@@ -2,30 +2,32 @@
 #define RENDERER_H
 
 #include <SFML/Graphics.hpp>
-#include <cmath>
-#include <string>
-
-#include "../engine/SimEngine.h"
+#include "Window.h"
+#include "../scenarios/HospitalSim.h"
 
 class Renderer
 {
-public:
-    Renderer(sf::RenderWindow &window);
-
-    void setWindow(sf::RenderWindow &window);
-    void drawHospital(SimEngine *engine, int numberOfDoctors);
-    void drawTraffic(SimEngine *engine, int numberOfIntersections);
-    void drawStats(SimulationStats &stats);
-
 private:
-    sf::RenderWindow *window;
     sf::Font font;
-    bool fontLoaded;
+    bool ready;
+    Window *win;
+    int lastWaitingCount;
+    float newPatientOffset;
+    int scrollOffset;
 
-    void ensureFont();
-    sf::Vector2f getRingPosition(int index, int total,
-                                 float centerX, float centerY,
-                                 float radius) const;
+    void drawWaitingPanel(sf::RenderWindow &w, HospitalSim *sim);
+    void drawTreatmentPanel(sf::RenderWindow &w, HospitalSim *sim);
+    void drawEventLogPanel(sf::RenderWindow &w, HospitalSim *sim);
+    void drawStatsPanel(sf::RenderWindow &w, HospitalSim *sim);
+    void drawPanelTitle(sf::RenderWindow &w, const char *text, float x, float y);
+    void drawPatientCircle(sf::RenderWindow &w, float x, float y, int patientId, int priority);
+
+public:
+    Renderer(Window *w);
+    bool loadFont();
+    bool isReady() const;
+    void drawAll(HospitalSim *sim);
+    void drawCompleteOverlay();
 };
 
 #endif

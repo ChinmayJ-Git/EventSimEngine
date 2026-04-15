@@ -2,39 +2,35 @@
 #define CSVEXPORTER_H
 
 #include <fstream>
-#include <string>
 
 class CSVExporter
 {
 public:
-  void exportResults(const std::string &filename,
-                     int totalPatients, int totalServed,
-                     int totalEscalations, double avgWait,
-                     double longestWait, int totalCars,
-                     int totalPassed, double avgCarWait,
-                     double longestCarWait)
+  static void exportRun(int runNumber, double avgWait, double longestWait,
+                        int escalations, int totalPatients,
+                        double utilEmergency, double utilGeneral, double utilSpecialist)
   {
-    std::ofstream file(filename.c_str());
+    bool isNew = false;
+    std::ifstream check("results.csv");
+    if (!check.is_open())
+    {
+      isNew = true;
+    }
+    check.close();
+
+    std::ofstream file("results.csv", std::ios::app);
     if (!file.is_open())
     {
       return;
     }
-
-    file << "totalPatients,totalServed,totalEscalations,avgWait,longestWait,totalCars,totalPassed,avgCarWait,longestCarWait";
-    file << "\n";
-
-    file << totalPatients << ","
-         << totalServed << ","
-         << totalEscalations << ","
-         << avgWait << ","
-         << longestWait << ","
-         << totalCars << ","
-         << totalPassed << ","
-         << avgCarWait << ","
-         << longestCarWait;
-    file << "\n";
-
-    file.close();
+    if (isNew)
+    {
+      file << "Run,AvgWait,LongestWait,Escalations,TotalPatients,";
+      file << "EmergencyUtil,GeneralUtil,SpecialistUtil\n";
+    }
+    file << runNumber << "," << avgWait << "," << longestWait << ","
+         << escalations << "," << totalPatients << "," << utilEmergency << ","
+         << utilGeneral << "," << utilSpecialist << "\n";
   }
 };
 

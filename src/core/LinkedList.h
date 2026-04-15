@@ -1,185 +1,142 @@
 #ifndef LINKEDLIST_H
 #define LINKEDLIST_H
 
-#include <iostream>
-
-// single node
-template <typename T>
-struct ListNode
-{
-    T data;
-    ListNode *next;
-
-    ListNode(const T &val)
-    {
-        data = val;
-        next = nullptr;
-    }
-};
-
-// singly linked list
 template <typename T>
 class LinkedList
 {
+public:
+    struct Node
+    {
+        T data;
+        Node *next;
+        Node *prev;
+        Node(T item) : data(item), next(0), prev(0) {}
+    };
+
 private:
-    ListNode<T> *head;
-    ListNode<T> *tail;
-    int size;
+    Node *head;
+    Node *tail;
+    int count;
 
 public:
-    // init empty list
-    LinkedList()
-    {
-        head = nullptr;
-        tail = nullptr;
-        size = 0;
-    }
-
-    // clean up all nodes
+    LinkedList() : head(0), tail(0), count(0) {}
     ~LinkedList()
     {
-        clear();
+        while (!isEmpty())
+        {
+            removeFront();
+        }
     }
 
-    // add to back
-    void pushBack(const T &val)
+    void addFront(T item)
     {
-        ListNode<T> *newNode = new ListNode<T>(val);
-        if (tail == nullptr)
+        Node *node = new Node(item);
+        if (head == 0)
         {
-            head = newNode;
-            tail = newNode;
+            head = node;
+            tail = node;
         }
         else
         {
-            tail->next = newNode;
-            tail = newNode;
+            node->next = head;
+            head->prev = node;
+            head = node;
         }
-        size++;
+        count++;
     }
 
-    // add to front
-    void pushFront(const T &val)
+    void addBack(T item)
     {
-        ListNode<T> *newNode = new ListNode<T>(val);
-        if (head == nullptr)
+        Node *node = new Node(item);
+        if (tail == 0)
         {
-            head = newNode;
-            tail = newNode;
+            head = node;
+            tail = node;
         }
         else
         {
-            newNode->next = head;
-            head = newNode;
+            tail->next = node;
+            node->prev = tail;
+            tail = node;
         }
-        size++;
+        count++;
     }
 
-    // remove from front
-    T popFront()
+    void removeFront()
     {
-        T val = head->data;
-        ListNode<T> *temp = head;
+        if (head == 0)
+        {
+            return;
+        }
+        Node *node = head;
         head = head->next;
-        if (head == nullptr)
-            tail = nullptr;
-        delete temp;
-        size--;
-        return val;
-    }
-
-    // peek front value
-    T &front()
-    {
-        return head->data;
-    }
-
-    // peek back value
-    T &back()
-    {
-        return tail->data;
-    }
-
-    // remove node by value
-    void remove(const T &val)
-    {
-        ListNode<T> *curr = head;
-        ListNode<T> *prev = nullptr;
-
-        while (curr != nullptr)
+        if (head != 0)
         {
-            if (curr->data == val)
+            head->prev = 0;
+        }
+        else
+        {
+            tail = 0;
+        }
+        delete node;
+        count--;
+    }
+
+    void removeBack()
+    {
+        if (tail == 0)
+        {
+            return;
+        }
+        Node *node = tail;
+        tail = tail->prev;
+        if (tail != 0)
+        {
+            tail->next = 0;
+        }
+        else
+        {
+            head = 0;
+        }
+        delete node;
+        count--;
+    }
+
+    void removeItem(T item)
+    {
+        Node *cur = head;
+        while (cur != 0)
+        {
+            if (cur->data == item)
             {
-                if (prev == nullptr)
-                    head = curr->next;
+                if (cur->prev != 0)
+                {
+                    cur->prev->next = cur->next;
+                }
                 else
-                    prev->next = curr->next;
-                if (curr == tail)
-                    tail = prev;
-                delete curr;
-                size--;
+                {
+                    head = cur->next;
+                }
+                if (cur->next != 0)
+                {
+                    cur->next->prev = cur->prev;
+                }
+                else
+                {
+                    tail = cur->prev;
+                }
+                delete cur;
+                count--;
                 return;
             }
-            prev = curr;
-            curr = curr->next;
+            cur = cur->next;
         }
     }
+    T peekFront() const { return head == 0 ? T() : head->data; }
+    Node *getHead() const { return head; }
 
-    // check if value exists
-    bool contains(const T &val) const
-    {
-        ListNode<T> *curr = head;
-        while (curr != nullptr)
-        {
-            if (curr->data == val)
-                return true;
-            curr = curr->next;
-        }
-        return false;
-    }
-
-    // current size
-    int getSize() const
-    {
-        return size;
-    }
-
-    // check if empty
-    bool isEmpty() const
-    {
-        return size == 0;
-    }
-
-    // delete all nodes
-    void clear()
-    {
-        while (head != nullptr)
-        {
-            ListNode<T> *temp = head;
-            head = head->next;
-            delete temp;
-        }
-        tail = nullptr;
-        size = 0;
-    }
-
-    // print all values (debug)
-    void print()
-    {
-        ListNode<T> *curr = head;
-        while (curr != nullptr)
-        {
-            std::cout << curr->data << " -> ";
-            curr = curr->next;
-        }
-        std::cout << "NULL" << std::endl;
-    }
-
-    // get head pointer (read only)
-    ListNode<T> *getHead() const
-    {
-        return head;
-    }
+    bool isEmpty() const { return count == 0; }
+    int size() const { return count; }
 };
 
 #endif

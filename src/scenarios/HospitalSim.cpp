@@ -1,415 +1,619 @@
 #include "HospitalSim.h"
 
-#include "../engine/EscalationManager.h"
+#include "../gui/Renderer.h"
+#include "../gui/Window.h"
 
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
-#include <iostream>
-#include <string>
 
-static bool hospitalSeeded = false;
+static bool isSeeded = false;
 
-HospitalSim::HospitalSim(SimEngine *engine, int numberOfDoctors,
-                         int numberOfBeds, double duration,
-                         double arrivalGap)
+static const char *priorityLabel(int priority)
 {
-    this->engine = engine;
-    this->numberOfDoctors = numberOfDoctors;
-    this->numberOfBeds = numberOfBeds;
-    this->duration = duration;
-    this->arrivalGap = arrivalGap;
-
-    if (this->arrivalGap <= 0.0)
+    if (priority == 1)
     {
-        this->arrivalGap = 1.0;
+        return "CRITICAL";
     }
-
-    nextEntityId = 10000;
-
-    totalPatients = 0;
-    totalServed = 0;
-    totalEscalations = 0;
-    totalWaitTime = 0.0;
-    longestWait = 0.0;
-
-    if (!hospitalSeeded)
+    if (priority == 2)
     {
-        std::srand((unsigned int)std::time(nullptr));
-        hospitalSeeded = true;
+        return "URGENT";
     }
+    return "NORMAL";
 }
 
-// route events to correct handler
-void HospitalSim::onEvent(Event *e)
+static const char *doctorForPriority(int priority)
 {
-    if (e->type == ARRIVAL)
-        handleArrival(e);
-    else if (e->type == SERVICE_START)
-        handleServiceStart(e);
-    else if (e->type == SERVICE_END)
-        handleServiceEnd(e);
-    else if (e->type == ESCALATION)
-        handleEscalation(e);
-    else if (e->type == DEPARTURE)
-        handleDeparture(e);
+    if (priority == 1)
+    {
+        return "Emergency";
+    }
+    if (priority == 2)
+    {
+        return "General";
+    }
+    return "Specialist";
 }
 
-void HospitalSim::initialise()
+HospitalSim::HospitalSim(int durationSeconds, double arrivalRate,
+                         int criticalDoctors, int generalDoctors, int specialistDoctors)
+    : engine((double)durationSeconds)
 {
-    engine->setEventHandler(this);
-    for (int i = 0; i < numberOfDoctors; i++)
+    this->durationSeconds = durationSeconds;
+    this->arrivalRate = arrivalRate;
+    if (this->arrivalRate <= 0.0)
     {
-        int doctorId = nextEntityId;
-        nextEntityId++;
-
-        std::string doctorName = "Doctor_" + std::to_string(i + 1);
-        Entity *doctor = new Entity(doctorId, DOCTOR, doctorName, 0.0, 1);
-        doctor->state = IDLE;
-        doctor->currentLocationId = i;
-
-        engine->addEntity(doctor);
-        doctorIds.pushBack(doctorId);
+        this->arrivalRate = 0.3;
     }
+    fastMode = false;
+    liveWindow = 0;
+    liveRenderer = 0;
 
-    for (int i = 0; i < numberOfBeds; i++)
-    {
-        int bedId = nextEntityId;
-        nextEntityId++;
+    doctors[0].id = 1;
+    doctors[0].specialization = "Emergency";
+    doctors[1].id = 2;
+    doctors[1].specialization = "General";
+    doctors[2].id = 3;
+    doctors[2].specialization = "Specialist";
 
-        std::string bedName = "Bed_" + std::to_string(i + 1);
-        Entity *bed = new Entity(bedId, BED, bedName, 0.0, 1);
-        bed->state = IDLE;
-        bed->currentLocationId = i;
+    doctorCapacity[0] = (criticalDoctors < 1) ? 1 : criticalDoctors;
+    doctorCapacity[1] = (generalDoctors < 1) ? 1 : generalDoctors;
+    doctorCapacity[2] = (specialistDoctors < 1) ? 1 : specialistDoctors;
 
-        engine->addEntity(bed);
-        bedIds.pushBack(bedId);
-    }
-
-    double firstTime = 1.0;
     for (int i = 0; i < 3; i++)
     {
-        firstTime = firstTime + getRandomArrivalGap();
-        if (firstTime <= duration)
+        doctors[i].isAvailable = true;
+        doctors[i].totalPatientsSeen = 0;
+        doctorBusyNow[i] = 0;
+        doctorBusyTime[i] = 0.0;
+        doctorCurrentPatient[i] = -1;
+    }
+
+    totalPatients = 0;
+    totalWaitTime = 0.0;
+    longestWait = 0.0;
+    escalationCount = 0;
+    eventLogCount = 0;
+    for (int i = 0; i < 12; i++)
+    {
+        eventLogLines[i][0] = '\0';
+        eventLogTypes[i] = 0;
+    }
+
+    engine.setEventHandler(this);
+}
+
+void HospitalSim::attachLiveView(Window *window, Renderer *renderer)
+{
+    liveWindow = window;
+    liveRenderer = renderer;
+}
+
+void HospitalSim::setFastMode(bool fastMode)
+{
+    this->fastMode = fastMode;
+}
+
+int HospitalSim::doctorIndex(const std::string &type) const
+{
+    if (type == "Emergency")
+    {
+        return 0;
+    }
+    if (type == "General")
+    {
+        return 1;
+    }
+    if (type == "Specialist")
+    {
+        return 2;
+    }
+    return -1;
+}
+
+void HospitalSim::enqueueByPriority(Patient *p)
+{
+    if (p == 0)
+    {
+        return;
+    }
+    if (p->priority == 1)
+    {
+        criticalQueue.addBack(p);
+    }
+    else if (p->priority == 2)
+    {
+        urgentQueue.addBack(p);
+    }
+    else
+    {
+        normalQueue.addBack(p);
+    }
+}
+
+void HospitalSim::removeFromPriorityQueue(Patient *p, int oldPriority)
+{
+    if (p == 0)
+    {
+        return;
+    }
+    if (oldPriority == 1)
+    {
+        criticalQueue.removeItem(p);
+    }
+    else if (oldPriority == 2)
+    {
+        urgentQueue.removeItem(p);
+    }
+    else
+    {
+        normalQueue.removeItem(p);
+    }
+}
+
+void HospitalSim::addEventLog(double timeValue, const char *eventName, const char *details, int logType)
+{
+    for (int i = 11; i > 0; i--)
+    {
+        std::snprintf(eventLogLines[i], 160, "%s", eventLogLines[i - 1]);
+        eventLogTypes[i] = eventLogTypes[i - 1];
+    }
+
+    std::snprintf(eventLogLines[0], 160, "[t=%05.2f] %s - %s", timeValue, eventName, details);
+    eventLogTypes[0] = logType;
+    if (eventLogCount < 12)
+    {
+        eventLogCount++;
+    }
+}
+
+void HospitalSim::updateLiveView()
+{
+    if (liveWindow == 0 || liveRenderer == 0)
+    {
+        return;
+    }
+    if (!liveWindow->checkOpen())
+    {
+        return;
+    }
+    liveWindow->pollEvents();
+    liveWindow->clear();
+    liveRenderer->drawAll(this);
+    liveWindow->display();
+}
+
+Doctor *HospitalSim::getFreeDoctor(std::string type)
+{
+    int idx = doctorIndex(type);
+    if (idx < 0)
+    {
+        return 0;
+    }
+    doctors[idx].isAvailable = (doctorBusyNow[idx] < doctorCapacity[idx]);
+    if (doctors[idx].isAvailable)
+    {
+        return &doctors[idx];
+    }
+    return 0;
+}
+
+void HospitalSim::onArrival(Patient *p)
+{
+    if (p == 0)
+    {
+        return;
+    }
+    p->state = WAITING;
+    enqueueByPriority(p);
+
+    Doctor *match = getFreeDoctor(doctorForPriority(p->priority));
+
+    char detail[120];
+    if (match != 0)
+    {
+        std::snprintf(detail, 120, "Patient #%d | Priority: %s | Assigned to: %s Doctor",
+                      p->id, priorityLabel(p->priority), match->specialization.c_str());
+    }
+    else
+    {
+        std::snprintf(detail, 120, "Patient #%d | Priority: %s | Queue: waiting...",
+                      p->id, priorityLabel(p->priority));
+    }
+    addEventLog(p->arrivalTime, "ARRIVAL", detail, 0);
+
+    EscalationManager::scheduleEscalation(p, &engine);
+    assignDoctor(p);
+}
+
+void HospitalSim::assignDoctor(Patient *p)
+{
+    if (p == 0 || p->state != WAITING)
+    {
+        return;
+    }
+    std::string doctorType = doctorForPriority(p->priority);
+    Doctor *d = getFreeDoctor(doctorType);
+    if (d == 0)
+    {
+        return;
+    }
+
+    removeFromPriorityQueue(p, p->priority);
+    int idx = doctorIndex(doctorType);
+    if (idx < 0)
+    {
+        return;
+    }
+    doctorBusyNow[idx]++;
+    d->isAvailable = (doctorBusyNow[idx] < doctorCapacity[idx]);
+    doctorCurrentPatient[idx] = p->id;
+
+    p->assignedDoctorType = doctorType;
+    p->serviceStartTime = engine.getCurrentTime();
+    if (p->serviceStartTime < p->arrivalTime)
+    {
+        p->serviceStartTime = p->arrivalTime;
+    }
+    p->state = WAITING;
+
+    engine.scheduleEvent(SERVICE_START, p->serviceStartTime, p->id, doctorType);
+    p->departureTime = p->serviceStartTime + (double)(20 + std::rand() % 41);
+    engine.scheduleEvent(SERVICE_END, p->departureTime, p->id, doctorType);
+}
+
+void HospitalSim::onServiceEnd(Patient *p, Doctor *d)
+{
+    if (p == 0 || d == 0)
+    {
+        return;
+    }
+    int idx = doctorIndex(d->specialization);
+    if (idx < 0)
+    {
+        return;
+    }
+
+    if (doctorBusyNow[idx] > 0)
+    {
+        doctorBusyNow[idx]--;
+    }
+    d->isAvailable = (doctorBusyNow[idx] < doctorCapacity[idx]);
+    if (doctorBusyNow[idx] == 0)
+    {
+        doctorCurrentPatient[idx] = -1;
+    }
+    d->totalPatientsSeen++;
+
+    double busy = p->departureTime - p->serviceStartTime;
+    if (busy < 0.0)
+    {
+        busy = 0.0;
+    }
+    doctorBusyTime[idx] += busy;
+
+    double wait = p->serviceStartTime - p->arrivalTime;
+    if (wait < 0.0)
+    {
+        wait = 0.0;
+    }
+    totalWaitTime += wait;
+    if (wait > longestWait)
+    {
+        longestWait = wait;
+    }
+
+    if (idx == 0 && !criticalQueue.isEmpty())
+    {
+        assignDoctor(criticalQueue.peekFront());
+    }
+    if (idx == 1 && !urgentQueue.isEmpty())
+    {
+        assignDoctor(urgentQueue.peekFront());
+    }
+    if (idx == 2 && !normalQueue.isEmpty())
+    {
+        assignDoctor(normalQueue.peekFront());
+    }
+
+    char detail[120];
+    std::snprintf(detail, 120, "Patient #%d | Wait was: %.2fs | %s Doctor now FREE",
+                  p->id, wait, d->specialization.c_str());
+    addEventLog(p->departureTime, "SERVICE END", detail, 3);
+}
+
+void HospitalSim::onEvent(Event *e)
+{
+    if (e == 0)
+    {
+        return;
+    }
+
+    if (e->type == ARRIVAL)
+    {
+        onArrival(engine.getPatient(e->patientId));
+        updateLiveView();
+        return;
+    }
+
+    if (e->type == SERVICE_START)
+    {
+        char detail[120];
+        std::snprintf(detail, 120, "%s Doctor - treating Patient #%d",
+                      e->doctorType.c_str(), e->patientId);
+        addEventLog(e->time, "SERVICE", detail, 1);
+        updateLiveView();
+        return;
+    }
+
+    if (e->type == SERVICE_END)
+    {
+        int idx = doctorIndex(e->doctorType);
+        if (idx >= 0)
         {
-            engine->scheduleEvent(firstTime, ARRIVAL, 0, 0, "patient arrives");
+            onServiceEnd(engine.getPatient(e->patientId), &doctors[idx]);
         }
+        updateLiveView();
+        return;
+    }
+
+    if (e->type == ESCALATION)
+    {
+        Patient *p = engine.getPatient(e->patientId);
+        if (p == 0 || p->state != WAITING)
+        {
+            return;
+        }
+
+        int before = p->priority;
+        EscalationManager::processEscalation(p, &engine);
+        if (p->priority < before)
+        {
+            escalationCount++;
+            double wait = e->time - p->arrivalTime;
+            if (wait < 0.0)
+            {
+                wait = 0.0;
+            }
+            removeFromPriorityQueue(p, before);
+            enqueueByPriority(p);
+            assignDoctor(p);
+
+            char detail[120];
+            std::snprintf(detail, 120, "Patient #%d | %s -> %s | Wait: %.2fs",
+                          p->id, priorityLabel(before), priorityLabel(p->priority), wait);
+            addEventLog(e->time, "ESCALATION", detail, 2);
+        }
+        updateLiveView();
+        return;
     }
 }
 
 void HospitalSim::run()
 {
-    engine->run();
-}
-
-void HospitalSim::printResults()
-{
-    double averageWait = 0.0;
-    if (totalServed > 0)
-        averageWait = totalWaitTime / totalServed;
-
-    std::cout << std::endl;
-    std::cout << "======= HOSPITAL FINAL REPORT =======" << std::endl;
-    std::cout << "Total patients arrived:   " << totalPatients << std::endl;
-    std::cout << "Patients fully served:    " << totalServed << std::endl;
-    std::cout << "Still waiting at end:     " << (totalPatients - totalServed) << std::endl;
-    std::cout << "Triage escalations fired: " << totalEscalations << std::endl;
-    std::cout << "Average wait time:        " << averageWait << " seconds" << std::endl;
-    std::cout << "Longest wait:             " << longestWait << " seconds" << std::endl;
-    std::cout << "=====================================" << std::endl;
-}
-
-void HospitalSim::handleArrival(Event *eventData)
-{
-    int patientId = nextEntityId;
-    nextEntityId++;
-
-    int priority = getRandomPriority();
-    std::string patientName = "Patient_" + std::to_string(patientId);
-    Entity *patient = new Entity(patientId, PATIENT, patientName, eventData->time, priority);
-    patient->currentLocationId = 0;
-
-    engine->addEntity(patient);
-    totalPatients++;
-
-    EscalationManager::scheduleEscalation(patient, engine);
-    if (patient->escalationDeadline > 0.0 && patient->escalationDeadline <= duration)
+    if (!isSeeded)
     {
-        engine->scheduleEvent(patient->escalationDeadline, ESCALATION,
-                              patient->id, 0, "patient escalates");
+        std::srand((unsigned int)std::time(0));
+        isSeeded = true;
     }
 
-    int doctorId = findFreeDoctor();
-    if (doctorId != -1)
+    double t = 0.0;
+    int idCounter = 1;
+
+    while (t < (double)durationSeconds)
     {
-        engine->scheduleEvent(eventData->time, SERVICE_START,
-                              patient->id, doctorId, "service starts");
-    }
-    else
-    {
-        insertWaitingPatient(patient->id);
-    }
-
-    double nextArrival = eventData->time + getRandomArrivalGap();
-    if (nextArrival <= duration)
-    {
-        engine->scheduleEvent(nextArrival, ARRIVAL, 0, 0, "patient arrives");
-    }
-}
-
-void HospitalSim::handleServiceStart(Event *eventData)
-{
-    Entity *doctor = engine->getEntity(eventData->locationId);
-    Entity *patient = engine->getEntity(eventData->entityId);
-
-    if (doctor == nullptr || patient == nullptr)
-        return;
-
-    // mark doctor busy
-    doctor->state = BUSY;
-
-    // mark patient being treated
-    patient->state = BUSY;
-
-    // record when service started
-    patient->timeServiceStarted = eventData->time;
-
-    // calc wait time — time from arrival to now
-    double waitTime = eventData->time - patient->timeOfArrival;
-    if (waitTime >= 0)
-    {
-        totalWaitTime = totalWaitTime + waitTime;
-        if (waitTime > longestWait)
-            longestWait = waitTime;
-    }
-
-    // remove from waiting list
-    int waitingIndex = findWaitingIndexById(patient->id);
-    if (waitingIndex != -1)
-        removeWaitingAt(waitingIndex);
-
-    // schedule service end
-    double serviceDuration = getRandomServiceDuration();
-    engine->scheduleEvent(eventData->time + serviceDuration, SERVICE_END,
-                          patient->id, doctor->id, "service ends");
-
-    std::cout << "  Doctor_" << (eventData->locationId - 10000 + 1)
-              << " treating " << patient->name
-              << " | waited " << (int)waitTime << "s" << std::endl;
-}
-void HospitalSim::handleServiceEnd(Event *eventData)
-{
-    Entity *doctor = engine->getEntity(eventData->locationId);
-    Entity *patient = engine->getEntity(eventData->entityId);
-
-    // free the doctor
-    if (doctor != nullptr)
-        doctor->state = IDLE;
-
-    // schedule patient departure
-    if (patient != nullptr)
-        engine->scheduleEvent(eventData->time + 5.0, DEPARTURE,
-                              patient->id, eventData->locationId, "patient leaves");
-
-    // assign next waiting patient to THIS doctor
-    if (!waitingPatientIds.isEmpty())
-    {
-        int nextPatientId = waitingPatientIds.get(0);
-        engine->scheduleEvent(eventData->time, SERVICE_START,
-                              nextPatientId, eventData->locationId, "service starts");
-    }
-}
-
-void HospitalSim::handleEscalation(Event *eventData)
-{
-    Entity *patient = engine->getEntity(eventData->entityId);
-    if (patient == nullptr)
-        return;
-
-    // only escalate if still waiting
-    if (patient->state != WAITING)
-        return;
-
-    int oldPriority = patient->priorityLevel;
-
-    // upgrade priority
-    if (patient->priorityLevel == 5)
-        patient->priorityLevel = 3;
-    else if (patient->priorityLevel == 3)
-        patient->priorityLevel = 1;
-
-    if (patient->priorityLevel != oldPriority)
-    {
-        totalEscalations++;
-        sortWaitingByPriority();
-
-        std::string oldName = (oldPriority == 5) ? "MINOR" : "NORMAL";
-        std::string newName = (patient->priorityLevel == 3) ? "NORMAL" : "CRITICAL";
-
-        std::cout << std::endl;
-        std::cout << "!!! TRIAGE ESCALATION !!!" << std::endl;
-        std::cout << "  " << patient->name << " waited too long" << std::endl;
-        std::cout << "  Priority: " << oldName << " -> " << newName << std::endl;
-        std::cout << std::endl;
-
-        // schedule next escalation if still not critical
-        if (patient->priorityLevel == 3)
+        t += (1.0 + (double)(std::rand() % 100) / 100.0) / arrivalRate;
+        if (t > (double)durationSeconds)
         {
-            double nextEscalation = engine->getCurrentTime() + 120.0;
-            if (nextEscalation <= duration)
-                engine->scheduleEvent(nextEscalation, ESCALATION,
-                                      patient->id, 0, patient->name + " escalates again");
-        }
-    }
-}
-
-void HospitalSim::handleDeparture(Event *eventData)
-{
-    Entity *patient = engine->getEntity(eventData->entityId);
-    if (patient == nullptr)
-        return;
-
-    patient->state = FINISHED;
-    patient->timeOfDeparture = eventData->time;
-    totalServed++;
-
-    std::cout << "  " << patient->name << " discharged | total served: "
-              << totalServed << std::endl;
-}
-
-int HospitalSim::findFreeDoctor() const
-{
-    for (int i = 0; i < doctorIds.size(); i++)
-    {
-        int doctorId = doctorIds.get(i);
-        Entity *doctor = engine->getEntity(doctorId);
-        if (doctor != nullptr && doctor->state == IDLE)
-        {
-            return doctorId;
-        }
-    }
-
-    return -1;
-}
-
-int HospitalSim::findWaitingIndexById(int patientId) const
-{
-    for (int i = 0; i < waitingPatientIds.size(); i++)
-    {
-        if (waitingPatientIds.get(i) == patientId)
-        {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-void HospitalSim::insertWaitingPatient(int patientId)
-{
-    Entity *newPatient = engine->getEntity(patientId);
-    if (newPatient == nullptr)
-    {
-        return;
-    }
-
-    int oldSize = waitingPatientIds.size();
-    waitingPatientIds.pushBack(patientId);
-
-    int insertIndex = oldSize;
-    for (int i = 0; i < oldSize; i++)
-    {
-        Entity *queuedPatient = engine->getEntity(waitingPatientIds.get(i));
-        if (queuedPatient != nullptr)
-        {
-            if (newPatient->priorityLevel < queuedPatient->priorityLevel)
-            {
-                insertIndex = i;
-                break;
-            }
-        }
-    }
-
-    for (int i = oldSize; i > insertIndex; i--)
-    {
-        waitingPatientIds.set(i, waitingPatientIds.get(i - 1));
-    }
-
-    waitingPatientIds.set(insertIndex, patientId);
-}
-
-void HospitalSim::removeWaitingAt(int index)
-{
-    int lastIndex = waitingPatientIds.size() - 1;
-    if (index < 0 || index > lastIndex)
-    {
-        return;
-    }
-
-    for (int i = index; i < lastIndex; i++)
-    {
-        waitingPatientIds.set(i, waitingPatientIds.get(i + 1));
-    }
-
-    waitingPatientIds.popBack();
-}
-
-void HospitalSim::sortWaitingByPriority()
-{
-    for (int i = 1; i < waitingPatientIds.size(); i++)
-    {
-        int patientId = waitingPatientIds.get(i);
-        Entity *patient = engine->getEntity(patientId);
-        if (patient == nullptr)
-        {
-            continue;
+            break;
         }
 
-        int patientPriority = patient->priorityLevel;
-        int j = i - 1;
+        Patient *p = new Patient();
+        p->id = idCounter;
+        idCounter++;
+        p->arrivalTime = t;
 
-        while (j >= 0)
+        int roll = std::rand() % 100;
+        if (roll < 25)
         {
-            int queuedId = waitingPatientIds.get(j);
-            Entity *queuedPatient = engine->getEntity(queuedId);
-            if (queuedPatient == nullptr)
-            {
-                break;
-            }
-
-            if (queuedPatient->priorityLevel <= patientPriority)
-            {
-                break;
-            }
-
-            waitingPatientIds.set(j + 1, queuedId);
-            j--;
+            p->priority = 1;
+        }
+        else if (roll < 60)
+        {
+            p->priority = 2;
+        }
+        else
+        {
+            p->priority = 3;
         }
 
-        waitingPatientIds.set(j + 1, patientId);
+        engine.addPatient(p);
+        totalPatients++;
+        engine.scheduleEvent(ARRIVAL, t, p->id, "");
     }
+
+    engine.setFastMode(fastMode);
+    engine.run();
 }
 
-int HospitalSim::getRandomPriority() const
+void HospitalSim::printStats()
 {
-    int roll = std::rand() % 100;
-    if (roll < 40)
+    // Stats are shown in the GUI and exported to CSV.
+}
+
+int HospitalSim::getTotalPatients() const { return totalPatients; }
+
+double HospitalSim::getAverageWait() const
+{
+    if (totalPatients == 0)
     {
-        return 1;
+        return 0.0;
     }
-    if (roll < 75)
+    return totalWaitTime / (double)totalPatients;
+}
+
+double HospitalSim::getLongestWait() const { return longestWait; }
+
+int HospitalSim::getEscalationCount() const { return escalationCount; }
+
+double HospitalSim::getDoctorUtilisation(int doctorIndex) const
+{
+    if (doctorIndex < 0 || doctorIndex > 2 || durationSeconds <= 0)
     {
-        return 3;
+        return 0.0;
     }
-    return 5;
+    double capacityTime = (double)durationSeconds * (double)doctorCapacity[doctorIndex];
+    if (capacityTime <= 0.0)
+    {
+        return 0.0;
+    }
+    return (doctorBusyTime[doctorIndex] / capacityTime) * 100.0;
 }
 
-double HospitalSim::getRandomArrivalGap() const
+int HospitalSim::getDoctorCapacity(int doctorIndex) const
 {
-    return arrivalGap;
+    if (doctorIndex < 0 || doctorIndex > 2)
+    {
+        return 0;
+    }
+    return doctorCapacity[doctorIndex];
 }
 
-double HospitalSim::getRandomServiceDuration() const
+int HospitalSim::getDoctorBusyNow(int doctorIndex) const
 {
-    int randomValue = 20 + (std::rand() % 41);
-    return (double)randomValue;
+    if (doctorIndex < 0 || doctorIndex > 2)
+    {
+        return 0;
+    }
+    return doctorBusyNow[doctorIndex];
+}
+
+int HospitalSim::getDoctorCurrentPatient(int doctorIndex) const
+{
+    if (doctorIndex < 0 || doctorIndex > 2)
+    {
+        return -1;
+    }
+    return doctorCurrentPatient[doctorIndex];
+}
+
+const char *HospitalSim::getDoctorLabel(int doctorIndex) const
+{
+    if (doctorIndex == 0)
+    {
+        return "EMERGENCY";
+    }
+    if (doctorIndex == 1)
+    {
+        return "GENERAL";
+    }
+    if (doctorIndex == 2)
+    {
+        return "SPECIALIST";
+    }
+    return "UNKNOWN";
+}
+
+int HospitalSim::getTotalWaiting() const
+{
+    return criticalQueue.size() + urgentQueue.size() + normalQueue.size();
+}
+
+int HospitalSim::getWaitingByPriority(int priority) const
+{
+    if (priority == 1)
+    {
+        return criticalQueue.size();
+    }
+    if (priority == 2)
+    {
+        return urgentQueue.size();
+    }
+    return normalQueue.size();
+}
+
+int HospitalSim::getWaitingSnapshot(int ids[], int priorities[], int maxItems, int offset) const
+{
+    if (ids == 0 || priorities == 0 || maxItems <= 0)
+    {
+        return 0;
+    }
+
+    int skipped = 0;
+    int written = 0;
+
+    LinkedList<Patient *>::Node *node = criticalQueue.getHead();
+    while (node != 0 && written < maxItems)
+    {
+        if (skipped < offset)
+        {
+            skipped++;
+        }
+        else
+        {
+            ids[written] = node->data->id;
+            priorities[written] = 1;
+            written++;
+        }
+        node = node->next;
+    }
+
+    node = urgentQueue.getHead();
+    while (node != 0 && written < maxItems)
+    {
+        if (skipped < offset)
+        {
+            skipped++;
+        }
+        else
+        {
+            ids[written] = node->data->id;
+            priorities[written] = 2;
+            written++;
+        }
+        node = node->next;
+    }
+
+    node = normalQueue.getHead();
+    while (node != 0 && written < maxItems)
+    {
+        if (skipped < offset)
+        {
+            skipped++;
+        }
+        else
+        {
+            ids[written] = node->data->id;
+            priorities[written] = 3;
+            written++;
+        }
+        node = node->next;
+    }
+
+    return written;
+}
+
+int HospitalSim::getEventLogCount() const { return eventLogCount; }
+
+const char *HospitalSim::getEventLogLine(int index) const
+{
+    if (index < 0 || index >= eventLogCount)
+    {
+        return "";
+    }
+    return eventLogLines[index];
+}
+
+int HospitalSim::getEventLogType(int index) const
+{
+    if (index < 0 || index >= eventLogCount)
+    {
+        return 0;
+    }
+    return eventLogTypes[index];
+}
+
+double HospitalSim::getCurrentSimTime() const
+{
+    return engine.getCurrentTime();
 }

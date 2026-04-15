@@ -1,59 +1,49 @@
-// This file describes what a single "event" looks like in our simulation.
-//  Concept: This is the data that goes into our Priority Queue (Min-Heap).
-
 #ifndef EVENT_H
 #define EVENT_H
 
 #include <string>
 
-// event types
+// event categories
 enum EventType
 {
     ARRIVAL,
-    DEPARTURE,
     SERVICE_START,
     SERVICE_END,
-    SIGNAL_CHANGE,
-    SIGNAL_CHECK,
-    ESCALATION,
-    TICK,
-    CUSTOM
+    ESCALATION
 };
 
-// one event — a moment in time
+// event data bundle
 struct Event
 {
-    double time;
+    int id;
     EventType type;
-    int entityId;
-    int locationId;
-    std::string description;
+    double time;
+    int patientId;
+    std::string doctorType;
 
-    // constructor
-    Event(double eventTime, EventType eventType, int whoIsInvolved,
-          int whereItHappens, std::string desc = "")
+    Event()
     {
-        time = eventTime;
-        type = eventType;
-        entityId = whoIsInvolved;
-        locationId = whereItHappens;
-        description = desc;
+        id = -1;
+        type = ARRIVAL;
+        time = 0.0;
+        patientId = -1;
+        doctorType = "";
     }
 
-    // comparisons for min-heap
-    bool operator<(const Event& other) const
+    Event(int eventId, EventType eventType, double eventTime,
+          int eventPatientId, const std::string &eventDoctorType)
+    {
+        id = eventId;
+        type = eventType;
+        time = eventTime;
+        patientId = eventPatientId;
+        doctorType = eventDoctorType;
+    }
+
+    // compare by time
+    bool operator<(const Event &other) const
     {
         return time < other.time;
-    }
-
-    bool operator>(const Event& other) const
-    {
-        return time > other.time;
-    }
-
-    bool operator==(const Event& other) const
-    {
-        return time == other.time;
     }
 };
 
