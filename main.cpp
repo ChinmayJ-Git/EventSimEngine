@@ -34,16 +34,22 @@ int main()
   sim->setFastMode(config.fastMode);
   sim->run();
   sim->printStats();
-  CSVExporter::exportRun(1, sim->getAverageWait(), sim->getLongestWait(), sim->getEscalationCount(),
-                         sim->getTotalPatients(), sim->getDoctorUtilisation(0),
-                         sim->getDoctorUtilisation(1), sim->getDoctorUtilisation(2));
+  CSVExporter::exportRun(sim->getCurrentSimTime(), sim->getTotalPatients(),
+                         sim->getAverageWait(), sim->getLongestWait(), sim->getEscalationCount(),
+                         sim->getDoctorUtilisation(0), sim->getDoctorUtilisation(1),
+                         sim->getDoctorUtilisation(2), sim->getTotalWaiting());
+  renderer.setSimulationComplete(true);
 
   while (window.checkOpen())
   {
     window.pollEvents();
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+    {
+      window.close();
+      continue;
+    }
     window.clear();
     renderer.drawAll(sim);
-    renderer.drawCompleteOverlay();
     window.display();
   }
 

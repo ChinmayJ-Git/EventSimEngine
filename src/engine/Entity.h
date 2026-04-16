@@ -46,6 +46,7 @@ struct Patient
 struct Doctor
 {
     int id;
+    std::string name;
     std::string specialization;
     bool isAvailable;
     int totalPatientsSeen;
@@ -53,6 +54,7 @@ struct Doctor
     Doctor()
     {
         id = -1;
+        name = "";
         specialization = "";
         isAvailable = true;
         totalPatientsSeen = 0;

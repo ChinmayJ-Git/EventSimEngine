@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <SFML/System.hpp>
 
 static bool isSeeded = false;
 
@@ -50,10 +51,13 @@ HospitalSim::HospitalSim(int durationSeconds, double arrivalRate,
     liveRenderer = 0;
 
     doctors[0].id = 1;
+    doctors[0].name = "Dr. Anjali";
     doctors[0].specialization = "Emergency";
     doctors[1].id = 2;
+    doctors[1].name = "Dr. Mahesh";
     doctors[1].specialization = "General";
     doctors[2].id = 3;
+    doctors[2].name = "Dr. Rahul";
     doctors[2].specialization = "Specialist";
 
     doctorCapacity[0] = (criticalDoctors < 1) ? 1 : criticalDoctors;
@@ -73,11 +77,17 @@ HospitalSim::HospitalSim(int durationSeconds, double arrivalRate,
     totalWaitTime = 0.0;
     longestWait = 0.0;
     escalationCount = 0;
-    eventLogCount = 0;
-    for (int i = 0; i < 12; i++)
+    logCount = 0;
+    eventLogDelay = 0;
+    peakWaitingRoom = 0;
+    countCritical = 0;
+    countUrgent = 0;
+    countNormal = 0;
+    patientsOnTime = 0;
+    for (int i = 0; i < 500; i++)
     {
-        eventLogLines[i][0] = '\0';
-        eventLogTypes[i] = 0;
+        logLines[i][0] = '\0';
+        logTypes[i] = 0;
     }
 
     engine.setEventHandler(this);
@@ -153,18 +163,19 @@ void HospitalSim::removeFromPriorityQueue(Patient *p, int oldPriority)
 
 void HospitalSim::addEventLog(double timeValue, const char *eventName, const char *details, int logType)
 {
-    for (int i = 11; i > 0; i--)
+    if (logCount >= 500)
     {
-        std::snprintf(eventLogLines[i], 160, "%s", eventLogLines[i - 1]);
-        eventLogTypes[i] = eventLogTypes[i - 1];
+        for (int i = 1; i < 500; i++)
+        {
+            std::snprintf(logLines[i - 1], 200, "%s", logLines[i]);
+            logTypes[i - 1] = logTypes[i];
+        }
+        logCount = 499;
     }
 
-    std::snprintf(eventLogLines[0], 160, "[t=%05.2f] %s - %s", timeValue, eventName, details);
-    eventLogTypes[0] = logType;
-    if (eventLogCount < 12)
-    {
-        eventLogCount++;
-    }
+    std::snprintf(logLines[logCount], 200, "[t=%.1fs]  %-10s >> %s", timeValue, eventName, details);
+    logTypes[logCount] = logType;
+    logCount++;
 }
 
 void HospitalSim::updateLiveView()
@@ -207,18 +218,24 @@ void HospitalSim::onArrival(Patient *p)
     p->state = WAITING;
     enqueueByPriority(p);
 
+    int waitingNow = getTotalWaiting();
+    if (waitingNow > peakWaitingRoom)
+    {
+        peakWaitingRoom = waitingNow;
+    }
+
     Doctor *match = getFreeDoctor(doctorForPriority(p->priority));
 
     char detail[120];
     if (match != 0)
     {
-        std::snprintf(detail, 120, "Patient #%d | Priority: %s | Assigned to: %s Doctor",
+        std::snprintf(detail, 120, "Patient #%d (%s) arrived, assigned to %s Doctor",
                       p->id, priorityLabel(p->priority), match->specialization.c_str());
     }
     else
     {
-        std::snprintf(detail, 120, "Patient #%d | Priority: %s | Queue: waiting...",
-                      p->id, priorityLabel(p->priority));
+        std::snprintf(detail, 120, "Patient #%d (%s) arrived, waiting for %s Doctor",
+                      p->id, priorityLabel(p->priority), doctorForPriority(p->priority));
     }
     addEventLog(p->arrivalTime, "ARRIVAL", detail, 0);
 
@@ -302,6 +319,10 @@ void HospitalSim::onServiceEnd(Patient *p, Doctor *d)
     {
         longestWait = wait;
     }
+    if (wait < 30.0)
+    {
+        patientsOnTime++;
+    }
 
     if (idx == 0 && !criticalQueue.isEmpty())
     {
@@ -317,9 +338,9 @@ void HospitalSim::onServiceEnd(Patient *p, Doctor *d)
     }
 
     char detail[120];
-    std::snprintf(detail, 120, "Patient #%d | Wait was: %.2fs | %s Doctor now FREE",
-                  p->id, wait, d->specialization.c_str());
-    addEventLog(p->departureTime, "SERVICE END", detail, 3);
+    std::snprintf(detail, 120, "Patient #%d (%s) discharged | Wait: %.1fs | Dr. %s free",
+                  p->id, priorityLabel(p->priority), wait, d->specialization.c_str());
+    addEventLog(p->departureTime, "DISCHARGE", detail, 3);
 }
 
 void HospitalSim::onEvent(Event *e)
@@ -332,61 +353,59 @@ void HospitalSim::onEvent(Event *e)
     if (e->type == ARRIVAL)
     {
         onArrival(engine.getPatient(e->patientId));
-        updateLiveView();
-        return;
     }
-
-    if (e->type == SERVICE_START)
+    else if (e->type == SERVICE_START)
     {
+        Patient *p = engine.getPatient(e->patientId);
+        const char *priority = (p == 0) ? "UNKNOWN" : priorityLabel(p->priority);
         char detail[120];
-        std::snprintf(detail, 120, "%s Doctor - treating Patient #%d",
-                      e->doctorType.c_str(), e->patientId);
-        addEventLog(e->time, "SERVICE", detail, 1);
-        updateLiveView();
-        return;
+        std::snprintf(detail, 120, "Dr. %s started treating Patient #%d (%s)",
+                      e->doctorType.c_str(), e->patientId, priority);
+        addEventLog(e->time, "TREATMENT", detail, 1);
     }
-
-    if (e->type == SERVICE_END)
+    else if (e->type == SERVICE_END)
     {
         int idx = doctorIndex(e->doctorType);
         if (idx >= 0)
         {
             onServiceEnd(engine.getPatient(e->patientId), &doctors[idx]);
         }
-        updateLiveView();
-        return;
     }
-
-    if (e->type == ESCALATION)
+    else if (e->type == ESCALATION)
     {
         Patient *p = engine.getPatient(e->patientId);
-        if (p == 0 || p->state != WAITING)
+        if (p != 0 && p->state == WAITING)
         {
-            return;
-        }
-
-        int before = p->priority;
-        EscalationManager::processEscalation(p, &engine);
-        if (p->priority < before)
-        {
-            escalationCount++;
-            double wait = e->time - p->arrivalTime;
-            if (wait < 0.0)
+            int before = p->priority;
+            EscalationManager::processEscalation(p, &engine);
+            if (p->priority < before)
             {
-                wait = 0.0;
-            }
-            removeFromPriorityQueue(p, before);
-            enqueueByPriority(p);
-            assignDoctor(p);
+                escalationCount++;
+                double wait = e->time - p->arrivalTime;
+                if (wait < 0.0)
+                {
+                    wait = 0.0;
+                }
+                removeFromPriorityQueue(p, before);
+                enqueueByPriority(p);
+                assignDoctor(p);
 
-            char detail[120];
-            std::snprintf(detail, 120, "Patient #%d | %s -> %s | Wait: %.2fs",
-                          p->id, priorityLabel(before), priorityLabel(p->priority), wait);
-            addEventLog(e->time, "ESCALATION", detail, 2);
+                char detail[120];
+                std::snprintf(detail, 120, "Patient #%d upgraded %s -> %s after waiting %ds",
+                              p->id, priorityLabel(before), priorityLabel(p->priority), (int)(wait + 0.5));
+                addEventLog(e->time, "ESCALATION", detail, 2);
+            }
         }
-        updateLiveView();
-        return;
     }
+
+    updateLiveView();
+    eventLogDelay += 5000;
+    int pauseMs = fastMode ? 4900 : 4500;
+    if (pauseMs < 0)
+    {
+        pauseMs = 0;
+    }
+    sf::sleep(sf::milliseconds(pauseMs));
 }
 
 void HospitalSim::run()
@@ -417,14 +436,17 @@ void HospitalSim::run()
         if (roll < 25)
         {
             p->priority = 1;
+            countCritical++;
         }
         else if (roll < 60)
         {
             p->priority = 2;
+            countUrgent++;
         }
         else
         {
             p->priority = 3;
+            countNormal++;
         }
 
         engine.addPatient(p);
@@ -488,6 +510,15 @@ int HospitalSim::getDoctorBusyNow(int doctorIndex) const
     return doctorBusyNow[doctorIndex];
 }
 
+int HospitalSim::getDoctorSeenToday(int doctorIndex) const
+{
+    if (doctorIndex < 0 || doctorIndex > 2)
+    {
+        return 0;
+    }
+    return doctors[doctorIndex].totalPatientsSeen;
+}
+
 int HospitalSim::getDoctorCurrentPatient(int doctorIndex) const
 {
     if (doctorIndex < 0 || doctorIndex > 2)
@@ -497,19 +528,38 @@ int HospitalSim::getDoctorCurrentPatient(int doctorIndex) const
     return doctorCurrentPatient[doctorIndex];
 }
 
-const char *HospitalSim::getDoctorLabel(int doctorIndex) const
+int HospitalSim::getDoctorCurrentPriority(int doctorIndex)
+{
+    if (doctorIndex < 0 || doctorIndex > 2)
+    {
+        return 0;
+    }
+    int patientId = doctorCurrentPatient[doctorIndex];
+    if (patientId < 0)
+    {
+        return 0;
+    }
+    Patient *p = engine.getPatient(patientId);
+    if (p == 0)
+    {
+        return 0;
+    }
+    return p->priority;
+}
+
+const char *HospitalSim::getDoctorName(int doctorIndex) const
 {
     if (doctorIndex == 0)
     {
-        return "EMERGENCY";
+        return doctors[0].name.c_str();
     }
     if (doctorIndex == 1)
     {
-        return "GENERAL";
+        return doctors[1].name.c_str();
     }
     if (doctorIndex == 2)
     {
-        return "SPECIALIST";
+        return doctors[2].name.c_str();
     }
     return "UNKNOWN";
 }
@@ -518,6 +568,16 @@ int HospitalSim::getTotalWaiting() const
 {
     return criticalQueue.size() + urgentQueue.size() + normalQueue.size();
 }
+
+int HospitalSim::getPeakWaitingRoom() const { return peakWaitingRoom; }
+
+int HospitalSim::getCountCritical() const { return countCritical; }
+
+int HospitalSim::getCountUrgent() const { return countUrgent; }
+
+int HospitalSim::getCountNormal() const { return countNormal; }
+
+int HospitalSim::getPatientsOnTime() const { return patientsOnTime; }
 
 int HospitalSim::getWaitingByPriority(int priority) const
 {
@@ -530,6 +590,64 @@ int HospitalSim::getWaitingByPriority(int priority) const
         return urgentQueue.size();
     }
     return normalQueue.size();
+}
+
+int HospitalSim::getWaitingRows(int ids[], int priorities[], int waits[], int maxItems) const
+{
+    if (ids == 0 || priorities == 0 || waits == 0 || maxItems <= 0)
+    {
+        return 0;
+    }
+
+    int written = 0;
+    double now = engine.getCurrentTime();
+
+    LinkedList<Patient *>::Node *node = criticalQueue.getHead();
+    while (node != 0 && written < maxItems)
+    {
+        ids[written] = node->data->id;
+        priorities[written] = 1;
+        double wait = now - node->data->arrivalTime;
+        if (wait < 0.0)
+        {
+            wait = 0.0;
+        }
+        waits[written] = (int)(wait + 0.5);
+        written++;
+        node = node->next;
+    }
+
+    node = urgentQueue.getHead();
+    while (node != 0 && written < maxItems)
+    {
+        ids[written] = node->data->id;
+        priorities[written] = 2;
+        double wait = now - node->data->arrivalTime;
+        if (wait < 0.0)
+        {
+            wait = 0.0;
+        }
+        waits[written] = (int)(wait + 0.5);
+        written++;
+        node = node->next;
+    }
+
+    node = normalQueue.getHead();
+    while (node != 0 && written < maxItems)
+    {
+        ids[written] = node->data->id;
+        priorities[written] = 3;
+        double wait = now - node->data->arrivalTime;
+        if (wait < 0.0)
+        {
+            wait = 0.0;
+        }
+        waits[written] = (int)(wait + 0.5);
+        written++;
+        node = node->next;
+    }
+
+    return written;
 }
 
 int HospitalSim::getWaitingSnapshot(int ids[], int priorities[], int maxItems, int offset) const
@@ -593,24 +711,24 @@ int HospitalSim::getWaitingSnapshot(int ids[], int priorities[], int maxItems, i
     return written;
 }
 
-int HospitalSim::getEventLogCount() const { return eventLogCount; }
+int HospitalSim::getEventLogCount() const { return logCount; }
 
 const char *HospitalSim::getEventLogLine(int index) const
 {
-    if (index < 0 || index >= eventLogCount)
+    if (index < 0 || index >= logCount)
     {
         return "";
     }
-    return eventLogLines[index];
+    return logLines[index];
 }
 
 int HospitalSim::getEventLogType(int index) const
 {
-    if (index < 0 || index >= eventLogCount)
+    if (index < 0 || index >= logCount)
     {
         return 0;
     }
-    return eventLogTypes[index];
+    return logTypes[index];
 }
 
 double HospitalSim::getCurrentSimTime() const

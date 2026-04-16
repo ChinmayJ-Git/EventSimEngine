@@ -10,15 +10,17 @@ class Renderer
 private:
     sf::Font font;
     bool ready;
-    Window *win;
-    int lastWaitingCount;
-    float newPatientOffset;
+    bool simulationComplete;
     int scrollOffset;
+    bool upHeld;
+    bool downHeld;
+    Window *win;
 
     void drawWaitingPanel(sf::RenderWindow &w, HospitalSim *sim);
     void drawTreatmentPanel(sf::RenderWindow &w, HospitalSim *sim);
     void drawEventLogPanel(sf::RenderWindow &w, HospitalSim *sim);
     void drawStatsPanel(sf::RenderWindow &w, HospitalSim *sim);
+    void drawCompletionPanel(sf::RenderWindow &w, HospitalSim *sim);
     void drawPanelTitle(sf::RenderWindow &w, const char *text, float x, float y);
     void drawPatientCircle(sf::RenderWindow &w, float x, float y, int patientId, int priority);
 
@@ -26,8 +28,8 @@ public:
     Renderer(Window *w);
     bool loadFont();
     bool isReady() const;
+    void setSimulationComplete(bool done);
     void drawAll(HospitalSim *sim);
-    void drawCompleteOverlay();
 };
 
 #endif

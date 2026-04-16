@@ -31,9 +31,15 @@ private:
     double totalWaitTime;
     double longestWait;
     int escalationCount;
-    char eventLogLines[12][160];
-    int eventLogTypes[12];
-    int eventLogCount;
+    char logLines[500][200];
+    int logTypes[500];
+    int logCount;
+    int eventLogDelay;
+    int peakWaitingRoom;
+    int countCritical;
+    int countUrgent;
+    int countNormal;
+    int patientsOnTime;
 
     int doctorIndex(const std::string &type) const;
     void enqueueByPriority(Patient *p);
@@ -60,10 +66,18 @@ public:
     double getDoctorUtilisation(int doctorIndex) const;
     int getDoctorCapacity(int doctorIndex) const;
     int getDoctorBusyNow(int doctorIndex) const;
+    int getDoctorSeenToday(int doctorIndex) const;
     int getDoctorCurrentPatient(int doctorIndex) const;
-    const char *getDoctorLabel(int doctorIndex) const;
+    int getDoctorCurrentPriority(int doctorIndex);
+    const char *getDoctorName(int doctorIndex) const;
     int getTotalWaiting() const;
+    int getPeakWaitingRoom() const;
+    int getCountCritical() const;
+    int getCountUrgent() const;
+    int getCountNormal() const;
+    int getPatientsOnTime() const;
     int getWaitingByPriority(int priority) const;
+    int getWaitingRows(int ids[], int priorities[], int waits[], int maxItems) const;
     int getWaitingSnapshot(int ids[], int priorities[], int maxItems, int offset) const;
     int getEventLogCount() const;
     const char *getEventLogLine(int index) const;

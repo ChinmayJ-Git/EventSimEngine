@@ -1,7 +1,7 @@
 #include "Menu.h"
 
+#include <cstdio>
 #include <iostream>
-#include <string>
 
 Menu::Menu()
 {
@@ -104,17 +104,21 @@ SimConfig Menu::show(sf::RenderWindow &window)
     return config;
   }
 
-  const char *labels[6] = {
+  const int fieldCount = 6;
+  const char *labels[fieldCount] = {
       "Critical Doctors",
       "General Doctors",
       "Specialist Doctors",
       "Simulation Duration (seconds)",
       "Seconds Between Patient Arrivals",
       "Simulation Speed"};
-
-  sf::RectangleShape startButton(sf::Vector2f(420.0f, 60.0f));
-  startButton.setPosition(430.0f, 640.0f);
-  startButton.setFillColor(sf::Color(30, 170, 70));
+  const char *hints[fieldCount] = {
+      "(use LEFT/RIGHT arrows to change)",
+      "(use LEFT/RIGHT arrows to change)",
+      "(use LEFT/RIGHT arrows to change)",
+      "(use LEFT/RIGHT arrows to change)",
+      "(use LEFT/RIGHT arrows to change)",
+      "(use LEFT/RIGHT arrows to toggle)"};
 
   while (window.isOpen())
   {
@@ -127,133 +131,132 @@ SimConfig Menu::show(sf::RenderWindow &window)
         config.duration = 0;
         return config;
       }
-
-      if (event.type == sf::Event::KeyPressed)
+      if (event.type != sf::Event::KeyPressed)
       {
-        if (event.key.code == sf::Keyboard::Up)
-        {
-          selectedField = (selectedField + 6) % 7;
-        }
-        if (event.key.code == sf::Keyboard::Down)
-        {
-          selectedField = (selectedField + 1) % 7;
-        }
-        if (selectedField < 5 && event.key.code == sf::Keyboard::Left)
+        continue;
+      }
+
+      sf::Keyboard::Key key = event.key.code;
+      if (key == sf::Keyboard::Up)
+      {
+        selectedField = (selectedField + fieldCount - 1) % fieldCount;
+      }
+      else if (key == sf::Keyboard::Down)
+      {
+        selectedField = (selectedField + 1) % fieldCount;
+      }
+      else if (key == sf::Keyboard::Left)
+      {
+        if (selectedField < 5)
         {
           changeField(config, selectedField, -1);
         }
-        if (selectedField < 5 && event.key.code == sf::Keyboard::Right)
-        {
-          changeField(config, selectedField, 1);
-        }
-        if (selectedField == 5 && (event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::Right || event.key.code == sf::Keyboard::Enter))
+        else
         {
           config.fastMode = !config.fastMode;
         }
-        if (selectedField == 6 && event.key.code == sf::Keyboard::Enter)
-        {
-          return config;
-        }
-        if (event.key.code == sf::Keyboard::Escape)
-        {
-          config.duration = 0;
-          return config;
-        }
-
+      }
+      else if (key == sf::Keyboard::Right)
+      {
         if (selectedField < 5)
         {
-          int digit = -1;
-          if (event.key.code >= sf::Keyboard::Num0 && event.key.code <= sf::Keyboard::Num9)
-          {
-            digit = (int)event.key.code - (int)sf::Keyboard::Num0;
-          }
-          if (event.key.code >= sf::Keyboard::Numpad0 && event.key.code <= sf::Keyboard::Numpad9)
-          {
-            digit = (int)event.key.code - (int)sf::Keyboard::Numpad0;
-          }
-          if (digit >= 0)
-          {
-            int value = getFieldValue(config, selectedField);
-            setFieldValue(config, selectedField, value * 10 + digit);
-          }
-          if (event.key.code == sf::Keyboard::BackSpace)
-          {
-            int value = getFieldValue(config, selectedField);
-            setFieldValue(config, selectedField, value / 10);
-          }
+          changeField(config, selectedField, 1);
+        }
+        else
+        {
+          config.fastMode = !config.fastMode;
         }
       }
-
-      if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left)
+      else if (key == sf::Keyboard::Enter)
       {
-        float mx = (float)event.mouseButton.x;
-        float my = (float)event.mouseButton.y;
-        for (int i = 0; i < 6; i++)
+        return config;
+      }
+      else if (key == sf::Keyboard::Escape)
+      {
+        config.duration = 0;
+        return config;
+      }
+      else if (selectedField < 5)
+      {
+        int digit = -1;
+        if (key >= sf::Keyboard::Num0 && key <= sf::Keyboard::Num9)
         {
-          float y = 150.0f + (float)i * 75.0f;
-          if (mx >= 90.0f && mx <= 1180.0f && my >= y - 8.0f && my <= y + 42.0f)
-          {
-            selectedField = i;
-          }
+          digit = (int)key - (int)sf::Keyboard::Num0;
         }
-        if (mx >= 430.0f && mx <= 850.0f && my >= 640.0f && my <= 700.0f)
+        else if (key >= sf::Keyboard::Numpad0 && key <= sf::Keyboard::Numpad9)
         {
-          return config;
+          digit = (int)key - (int)sf::Keyboard::Numpad0;
+        }
+        if (digit >= 0)
+        {
+          int value = getFieldValue(config, selectedField);
+          setFieldValue(config, selectedField, value * 10 + digit);
+        }
+        if (key == sf::Keyboard::BackSpace)
+        {
+          int value = getFieldValue(config, selectedField);
+          setFieldValue(config, selectedField, value / 10);
         }
       }
     }
 
-    window.clear(sf::Color(12, 15, 24));
+    window.clear(sf::Color(26, 26, 46));
 
-    sf::Text title("HOSPITAL EMERGENCY SIMULATOR", font, 46);
+    sf::Text title("Hospital Emergency Department Simulator", font, 30);
     title.setFillColor(sf::Color::White);
-    title.setPosition(160.0f, 36.0f);
+    title.setPosition(60.0f, 24.0f);
     window.draw(title);
 
-    for (int i = 0; i < 6; i++)
+    sf::Text subtitle("Configure your simulation below", font, 20);
+    subtitle.setFillColor(sf::Color(200, 200, 200));
+    subtitle.setPosition(60.0f, 62.0f);
+    window.draw(subtitle);
+
+    for (int i = 0; i < fieldCount; i++)
     {
-      float y = 150.0f + (float)i * 75.0f;
-      sf::Color color = (selectedField == i) ? sf::Color::Yellow : sf::Color::White;
-      sf::Text label(labels[i], font, 28);
-      label.setFillColor(color);
-      label.setPosition(90.0f, y);
+      float y = 120.0f + (float)i * 85.0f;
+
+      sf::Text label(labels[i], font, 24);
+      label.setFillColor(sf::Color::White);
+      label.setPosition(60.0f, y);
       window.draw(label);
 
-      std::string valueText;
+      sf::RectangleShape valueBox(sf::Vector2f(320.0f, 36.0f));
+      valueBox.setPosition(820.0f, y - 2.0f);
+      valueBox.setFillColor(sf::Color(40, 40, 65));
+      valueBox.setOutlineThickness(2.0f);
+      valueBox.setOutlineColor((selectedField == i) ? sf::Color::Yellow : sf::Color(120, 120, 140));
+      window.draw(valueBox);
+
+      char valueText[96];
       if (i < 5)
       {
-        valueText = std::to_string(getFieldValue(config, i));
+        std::snprintf(valueText, 96, "%d", getFieldValue(config, i));
       }
       else
       {
-        valueText = config.fastMode ? "FAST (100ms per event)" : "NORMAL (500ms per event)";
+        std::snprintf(valueText, 96, "%s", config.fastMode ? "FAST (100ms)" : "NORMAL (500ms)");
       }
-      sf::Text value(valueText, font, 28);
-      value.setFillColor(color);
-      value.setPosition(730.0f, y);
+      sf::Text value(valueText, font, 22);
+      value.setFillColor(sf::Color::White);
+      value.setPosition(835.0f, y + 2.0f);
       window.draw(value);
+
+      sf::Text hint(hints[i], font, 16);
+      hint.setFillColor(sf::Color(170, 170, 170));
+      hint.setPosition(60.0f, y + 34.0f);
+      window.draw(hint);
     }
 
-    if (selectedField == 6)
-    {
-      startButton.setOutlineThickness(3.0f);
-      startButton.setOutlineColor(sf::Color::Yellow);
-    }
-    else
-    {
-      startButton.setOutlineThickness(0.0f);
-    }
-    window.draw(startButton);
-
-    sf::Text startText("START SIMULATION", font, 30);
+    sf::Text startText("Press ENTER to begin simulation", font, 24);
     startText.setFillColor(sf::Color::White);
-    startText.setPosition(495.0f, 652.0f);
+    startText.setPosition(60.0f, 610.0f);
     window.draw(startText);
 
-    sf::Text hint("Arrow keys to move/edit, Enter to toggle speed/start, Esc to cancel", font, 20);
-    hint.setFillColor(sf::Color(185, 185, 185));
-    hint.setPosition(170.0f, 605.0f);
-    window.draw(hint);
+    sf::Text controls("UP/DOWN to select field | LEFT/RIGHT to change value | ENTER to start", font, 18);
+    controls.setFillColor(sf::Color(190, 190, 190));
+    controls.setPosition(60.0f, 650.0f);
+    window.draw(controls);
 
     window.display();
   }
