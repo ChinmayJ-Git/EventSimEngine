@@ -26,6 +26,7 @@ private:
   int nextPatientId;
   EventHandler *eventHandler;
   int eventDelayMs;
+  bool stopRequested;
 
 public:
   SimEngine(double endTime);
@@ -35,6 +36,7 @@ public:
   void addPatient(Patient *p);
   Patient *getPatient(int id);
   double getCurrentTime() const;
+  void requestStop();
   void run();
   void processEvent(Event *e);
 };

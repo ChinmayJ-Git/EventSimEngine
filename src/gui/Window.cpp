@@ -6,6 +6,8 @@ Window::Window(std::string title, int width, int height)
     (void)width;
     (void)height;
     isOpen = true;
+    upPressed = false;
+    downPressed = false;
 }
 
 void Window::clear() { window.clear(sf::Color::Black); }
@@ -25,6 +27,8 @@ bool Window::checkOpen()
 
 void Window::pollEvents()
 {
+    upPressed = false;
+    downPressed = false;
     sf::Event event;
     while (window.pollEvent(event))
     {
@@ -32,7 +36,32 @@ void Window::pollEvents()
         {
             close();
         }
+        else if (event.type == sf::Event::KeyPressed)
+        {
+            if (event.key.code == sf::Keyboard::Up)
+            {
+                upPressed = true;
+            }
+            else if (event.key.code == sf::Keyboard::Down)
+            {
+                downPressed = true;
+            }
+        }
     }
+}
+
+bool Window::consumeUpPress()
+{
+    bool wasPressed = upPressed;
+    upPressed = false;
+    return wasPressed;
+}
+
+bool Window::consumeDownPress()
+{
+    bool wasPressed = downPressed;
+    downPressed = false;
+    return wasPressed;
 }
 
 sf::RenderWindow &Window::getWindow()

@@ -16,11 +16,7 @@ public:
     double waitSeconds = 0.0;
     if (p->priority == 3)
     {
-      waitSeconds = 90.0;
-    }
-    else if (p->priority == 2)
-    {
-      waitSeconds = 60.0;
+      waitSeconds = 30.0;
     }
     else
     {
@@ -47,10 +43,6 @@ public:
       return;
     }
     if (p->priority == 3)
-    {
-      p->priority = 2;
-    }
-    else if (p->priority == 2)
     {
       p->priority = 1;
     }

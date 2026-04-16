@@ -11,9 +11,8 @@ private:
     sf::Font font;
     bool ready;
     bool simulationComplete;
+    bool csvSaved;
     int scrollOffset;
-    bool upHeld;
-    bool downHeld;
     Window *win;
 
     void drawWaitingPanel(sf::RenderWindow &w, HospitalSim *sim);
@@ -29,6 +28,7 @@ public:
     bool loadFont();
     bool isReady() const;
     void setSimulationComplete(bool done);
+    void setCsvSaved(bool saved);
     void drawAll(HospitalSim *sim);
 };
 

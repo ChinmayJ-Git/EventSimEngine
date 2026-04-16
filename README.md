@@ -1,79 +1,41 @@
-# EventSimEngine
+# MediSim Engine
 
-A Hospital Simulator built in C++ for a Data Structures and Algorithms course project.
+MediSim Engine is a C++ event-driven hospital simulation project.
+It simulates patient arrivals, waiting queues, triage escalation, doctor assignment, live dashboard updates, and CSV result export.
 
-## What It Is
+## What This Project Includes
 
-This project is a discrete event simulation engine with a hospital scenario built on top of it.
-Instead of updating time second-by-second, the engine jumps directly to the next event in the queue.
-That makes the simulation efficient, deterministic, and ideal for modeling hospital flow.
+- Discrete event simulation core (arrival, treatment start, treatment end, escalation)
+- Three patient categories: NORMAL, SPECIFIC, CRITICAL
+- Three doctor roles: General, Specialist, Emergency
+- Live SFML dashboard: waiting area, treatment cards, event log, live stats
+- CSV export to results.csv after each run
 
-At runtime, the system schedules arrivals, service starts, service ends, escalations, and departures,
-then processes them in chronological order.
+## Requirements
 
-## Features
+- Windows 10/11
+- MinGW-w64 with g++ (C++17)
+- SFML 2.6.x installed at C:\SFML
+- assets/font.ttf present in the project
 
-- Discrete event simulation architecture with a reusable C++ engine
-- Three patient types: Critical, Urgent, Normal
-- Three specialized doctors: Emergency, General, Specialist
-- Triage escalation for long-waiting patients
-- SFML-based visualization of the simulation state
-- CSV export for simulation results and post-run analysis
+## Build
 
-## DSA Used
+Run from the project root (folder containing main.cpp):
 
-- MinHeap: event queue ordered by event timestamp
-- HashMap: entity storage and lookup by ID
-- LinkedList: waiting queues and chained storage logic
-- DynamicArray: dynamic stats storage and list operations
+g++ -std=c++17 -IC:/SFML/include -LC:/SFML/lib main.cpp src/engine/SimEngine.cpp src/gui/Window.cpp src/gui/Menu.cpp src/gui/Renderer.cpp src/scenarios/HospitalSim.cpp -o EventSimEngine.exe -lsfml-graphics -lsfml-window -lsfml-system
 
-## Build Command
+## Run
 
-Requires MinGW-w64 and SFML 2.6.1 installed at `C:\SFML`.
-The UI requires `assets/font.ttf` to be present.
+PowerShell:
 
-```bash
-g++ main.cpp src/engine/SimEngine.cpp src/gui/Window.cpp src/gui/Menu.cpp src/gui/Renderer.cpp src/scenarios/HospitalSim.cpp -o EventSimEngine.exe -IC:\SFML\include -LC:\SFML\lib -lsfml-graphics -lsfml-window -lsfml-system
-```
+$env:Path = "C:\SFML\bin;$env:Path"
+.\EventSimEngine.exe
 
-## Project Structure
+## Output
 
-```text
-EventSimEngine/
-├── main.cpp
-├── PROJECT_SPEC.md
-├── README.md
-├── assets/
-├── docs/
-├── src/
-│   ├── analytics/
-│   │   ├── CSVExporter.h
-│   │   └── StatsCollector.h
-│   ├── core/
-│   │   ├── DynamicArray.h
-│   │   ├── HashMap.h
-│   │   ├── LinkedList.h
-│   │   └── MinHeap.h
-│   ├── engine/
-│   │   ├── Entity.h
-│   │   ├── EscalationManager.h
-│   │   ├── Event.h
-│   │   ├── SimClock.h
-│   │   ├── SimEngine.cpp
-│   │   └── SimEngine.h
-│   ├── gui/
-│   │   ├── Dashboard.h
-│   │   ├── Menu.h
-│   │   ├── Renderer.cpp
-│   │   ├── Renderer.h
-│   │   ├── Window.cpp
-│   │   └── Window.h
-│   └── scenarios/
-│       ├── HospitalSim.cpp
-│       └── HospitalSim.h
-└── tests/
-    └── test_engine.cpp
-```
+- Simulation results are written to results.csv
+- Each run appends one row with runtime, waits, escalations, utilization, and waiting count
 
-This project demonstrates practical DSA design in a complete simulation workflow,
-from core event scheduling to visual output and analytics export.
+## Repository
+
+https://github.com/ChinmayJ-Git/EventSimEngine

@@ -18,22 +18,9 @@ static const char *priorityLabel(int priority)
     }
     if (priority == 2)
     {
-        return "URGENT";
+        return "SPECIFIC";
     }
     return "NORMAL";
-}
-
-static const char *doctorForPriority(int priority)
-{
-    if (priority == 1)
-    {
-        return "Emergency";
-    }
-    if (priority == 2)
-    {
-        return "General";
-    }
-    return "Specialist";
 }
 
 HospitalSim::HospitalSim(int durationSeconds, double arrivalRate,
@@ -60,9 +47,56 @@ HospitalSim::HospitalSim(int durationSeconds, double arrivalRate,
     doctors[2].name = "Dr. Rahul";
     doctors[2].specialization = "Specialist";
 
-    doctorCapacity[0] = (criticalDoctors < 1) ? 1 : criticalDoctors;
-    doctorCapacity[1] = (generalDoctors < 1) ? 1 : generalDoctors;
-    doctorCapacity[2] = (specialistDoctors < 1) ? 1 : specialistDoctors;
+    int c = criticalDoctors;
+    int g = generalDoctors;
+    int s = specialistDoctors;
+    if (c < 1)
+    {
+        c = 1;
+    }
+    if (g < 1)
+    {
+        g = 1;
+    }
+    if (s < 1)
+    {
+        s = 1;
+    }
+    if (c > 6)
+    {
+        c = 6;
+    }
+    if (g > 6)
+    {
+        g = 6;
+    }
+    if (s > 6)
+    {
+        s = 6;
+    }
+    while (c + g + s > 6)
+    {
+        if (c >= g && c >= s && c > 1)
+        {
+            c--;
+        }
+        else if (g >= s && g > 1)
+        {
+            g--;
+        }
+        else if (s > 1)
+        {
+            s--;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    doctorCapacity[0] = c;
+    doctorCapacity[1] = g;
+    doctorCapacity[2] = s;
 
     for (int i = 0; i < 3; i++)
     {
@@ -71,6 +105,42 @@ HospitalSim::HospitalSim(int durationSeconds, double arrivalRate,
         doctorBusyNow[i] = 0;
         doctorBusyTime[i] = 0.0;
         doctorCurrentPatient[i] = -1;
+        for (int slot = 0; slot < 6; slot++)
+        {
+            doctorSlotPatient[i][slot] = -1;
+            doctorSlotReservedPatient[i][slot] = -1;
+            doctorSlotPriority[i][slot] = 0;
+            doctorSlotSeen[i][slot] = 0;
+        }
+    }
+
+    const char *namePool[7] = {
+        "Dr. Anjali", "Dr. Mahesh", "Dr. Rahul", "Dr. Debasis",
+        "Dr. Shanmukha", "Dr. Ankit", "Dr. Ram"};
+    doctorBoxCount = 0;
+    int nextName = 0;
+    for (int role = 0; role < 3; role++)
+    {
+        for (int slot = 0; slot < doctorCapacity[role] && doctorBoxCount < 6; slot++)
+        {
+            doctorBoxRole[doctorBoxCount] = role;
+            doctorBoxSlot[doctorBoxCount] = slot;
+            std::snprintf(doctorBoxNames[doctorBoxCount], 32, "%s", namePool[nextName % 7]);
+            doctorBoxCount++;
+            nextName++;
+        }
+    }
+
+    for (int role = 0; role < 3; role++)
+    {
+        for (int i = 0; i < doctorBoxCount; i++)
+        {
+            if (doctorBoxRole[i] == role)
+            {
+                doctors[role].name = doctorBoxNames[i];
+                break;
+            }
+        }
     }
 
     totalPatients = 0;
@@ -119,6 +189,138 @@ int HospitalSim::doctorIndex(const std::string &type) const
         return 2;
     }
     return -1;
+}
+
+const char *HospitalSim::roleNameByIndex(int roleIndex) const
+{
+    if (roleIndex == 0)
+    {
+        return "Emergency";
+    }
+    if (roleIndex == 1)
+    {
+        return "General";
+    }
+    return "Specialist";
+}
+
+int HospitalSim::preferredRoleByPriority(int priority) const
+{
+    if (priority == 1)
+    {
+        return 0;
+    }
+    if (priority == 2)
+    {
+        return 2;
+    }
+    return 1;
+}
+
+int HospitalSim::fallbackRoleByPriority(int priority) const
+{
+    if (priority == 1)
+    {
+        return 1;
+    }
+    return -1;
+}
+
+int HospitalSim::findFreeDoctorSlot(int roleIndex) const
+{
+    if (roleIndex < 0 || roleIndex > 2)
+    {
+        return -1;
+    }
+    for (int slot = 0; slot < doctorCapacity[roleIndex]; slot++)
+    {
+        if (doctorSlotPatient[roleIndex][slot] < 0 && doctorSlotReservedPatient[roleIndex][slot] < 0)
+        {
+            return slot;
+        }
+    }
+    return -1;
+}
+
+int HospitalSim::findReservedDoctorSlotByPatient(int roleIndex, int patientId) const
+{
+    if (roleIndex < 0 || roleIndex > 2)
+    {
+        return -1;
+    }
+    for (int slot = 0; slot < doctorCapacity[roleIndex]; slot++)
+    {
+        if (doctorSlotReservedPatient[roleIndex][slot] == patientId)
+        {
+            return slot;
+        }
+    }
+    return -1;
+}
+
+int HospitalSim::findDoctorSlotByPatient(int roleIndex, int patientId) const
+{
+    if (roleIndex < 0 || roleIndex > 2)
+    {
+        return -1;
+    }
+    for (int slot = 0; slot < doctorCapacity[roleIndex]; slot++)
+    {
+        if (doctorSlotPatient[roleIndex][slot] == patientId)
+        {
+            return slot;
+        }
+    }
+    return -1;
+}
+
+Patient *HospitalSim::findFirstWaiting(LinkedList<Patient *> &queue) const
+{
+    LinkedList<Patient *>::Node *node = queue.getHead();
+    while (node != 0)
+    {
+        if (node->data != 0 && node->data->state == WAITING)
+        {
+            return node->data;
+        }
+        node = node->next;
+    }
+    return 0;
+}
+
+void HospitalSim::dispatchWaitingPatients()
+{
+    bool assignedAny = true;
+    while (assignedAny)
+    {
+        assignedAny = false;
+
+        int beforeAssigned = doctorBusyNow[0] + doctorBusyNow[1] + doctorBusyNow[2];
+
+        Patient *critical = findFirstWaiting(criticalQueue);
+        if (critical != 0)
+        {
+            assignDoctor(critical);
+        }
+
+        Patient *specific = findFirstWaiting(urgentQueue);
+        if (specific != 0)
+        {
+            assignDoctor(specific);
+        }
+
+        Patient *normal = findFirstWaiting(normalQueue);
+        if (normal != 0)
+        {
+            assignDoctor(normal);
+        }
+
+        int afterAssigned = doctorBusyNow[0] + doctorBusyNow[1] + doctorBusyNow[2];
+        if (afterAssigned > beforeAssigned)
+        {
+            assignedAny = true;
+        }
+    }
 }
 
 void HospitalSim::enqueueByPriority(Patient *p)
@@ -173,9 +375,20 @@ void HospitalSim::addEventLog(double timeValue, const char *eventName, const cha
         logCount = 499;
     }
 
-    std::snprintf(logLines[logCount], 200, "[t=%.1fs]  %-10s >> %s", timeValue, eventName, details);
+    std::snprintf(logLines[logCount], 200, "[t=%.1fs] %-10s >> %s", timeValue, eventName, details);
     logTypes[logCount] = logType;
     logCount++;
+
+    sf::Clock logClock;
+    while (logClock.getElapsedTime().asMilliseconds() < 5000)
+    {
+        updateLiveView();
+        if (liveWindow != 0 && !liveWindow->checkOpen())
+        {
+            break;
+        }
+        sf::sleep(sf::milliseconds(30));
+    }
 }
 
 void HospitalSim::updateLiveView()
@@ -216,6 +429,9 @@ void HospitalSim::onArrival(Patient *p)
         return;
     }
     p->state = WAITING;
+    p->serviceStartTime = -1.0;
+    p->departureTime = -1.0;
+    p->assignedDoctorType = "";
     enqueueByPriority(p);
 
     int waitingNow = getTotalWaiting();
@@ -224,23 +440,13 @@ void HospitalSim::onArrival(Patient *p)
         peakWaitingRoom = waitingNow;
     }
 
-    Doctor *match = getFreeDoctor(doctorForPriority(p->priority));
-
     char detail[120];
-    if (match != 0)
-    {
-        std::snprintf(detail, 120, "Patient #%d (%s) arrived, assigned to %s Doctor",
-                      p->id, priorityLabel(p->priority), match->specialization.c_str());
-    }
-    else
-    {
-        std::snprintf(detail, 120, "Patient #%d (%s) arrived, waiting for %s Doctor",
-                      p->id, priorityLabel(p->priority), doctorForPriority(p->priority));
-    }
+    std::snprintf(detail, 120, "Patient #%d (%s) arrived and entered waiting area",
+                  p->id, priorityLabel(p->priority));
     addEventLog(p->arrivalTime, "ARRIVAL", detail, 0);
 
     EscalationManager::scheduleEscalation(p, &engine);
-    assignDoctor(p);
+    dispatchWaitingPatients();
 }
 
 void HospitalSim::assignDoctor(Patient *p)
@@ -249,34 +455,57 @@ void HospitalSim::assignDoctor(Patient *p)
     {
         return;
     }
-    std::string doctorType = doctorForPriority(p->priority);
-    Doctor *d = getFreeDoctor(doctorType);
-    if (d == 0)
+
+    int roleIndex = -1;
+    int slotIndex = -1;
+    if (p->priority == 1)
+    {
+        roleIndex = 0;
+        slotIndex = findFreeDoctorSlot(roleIndex);
+        if (slotIndex < 0)
+        {
+            double waited = engine.getCurrentTime() - p->arrivalTime;
+            if (waited >= 60.0)
+            {
+                roleIndex = 1;
+                slotIndex = findFreeDoctorSlot(roleIndex);
+            }
+        }
+    }
+    else if (p->priority == 2)
+    {
+        roleIndex = 2;
+        slotIndex = findFreeDoctorSlot(roleIndex);
+    }
+    else
+    {
+        roleIndex = 1;
+        slotIndex = findFreeDoctorSlot(roleIndex);
+    }
+
+    if (slotIndex < 0)
     {
         return;
     }
 
-    removeFromPriorityQueue(p, p->priority);
-    int idx = doctorIndex(doctorType);
-    if (idx < 0)
-    {
-        return;
-    }
-    doctorBusyNow[idx]++;
-    d->isAvailable = (doctorBusyNow[idx] < doctorCapacity[idx]);
-    doctorCurrentPatient[idx] = p->id;
+    doctorBusyNow[roleIndex]++;
+    doctors[roleIndex].isAvailable = (doctorBusyNow[roleIndex] < doctorCapacity[roleIndex]);
+    doctorSlotReservedPatient[roleIndex][slotIndex] = p->id;
 
-    p->assignedDoctorType = doctorType;
-    p->serviceStartTime = engine.getCurrentTime();
-    if (p->serviceStartTime < p->arrivalTime)
+    p->assignedDoctorType = roleNameByIndex(roleIndex);
+    double baseStart = engine.getCurrentTime();
+    if (baseStart < p->arrivalTime)
     {
-        p->serviceStartTime = p->arrivalTime;
+        baseStart = p->arrivalTime;
     }
-    p->state = WAITING;
+    double triageDelay = (double)(3 + std::rand() % 6);
+    p->serviceStartTime = baseStart + triageDelay;
+    p->state = IDLE;
+    p->escalationDeadline = -1.0;
 
-    engine.scheduleEvent(SERVICE_START, p->serviceStartTime, p->id, doctorType);
-    p->departureTime = p->serviceStartTime + (double)(20 + std::rand() % 41);
-    engine.scheduleEvent(SERVICE_END, p->departureTime, p->id, doctorType);
+    engine.scheduleEvent(SERVICE_START, p->serviceStartTime, p->id, p->assignedDoctorType);
+    p->departureTime = p->serviceStartTime + (double)(22 + std::rand() % 29);
+    engine.scheduleEvent(SERVICE_END, p->departureTime, p->id, p->assignedDoctorType);
 }
 
 void HospitalSim::onServiceEnd(Patient *p, Doctor *d)
@@ -295,10 +524,23 @@ void HospitalSim::onServiceEnd(Patient *p, Doctor *d)
     {
         doctorBusyNow[idx]--;
     }
-    d->isAvailable = (doctorBusyNow[idx] < doctorCapacity[idx]);
-    if (doctorBusyNow[idx] == 0)
+    int slot = findDoctorSlotByPatient(idx, p->id);
+    if (slot >= 0)
     {
-        doctorCurrentPatient[idx] = -1;
+        doctorSlotPatient[idx][slot] = -1;
+        doctorSlotPriority[idx][slot] = 0;
+        doctorSlotSeen[idx][slot]++;
+    }
+
+    d->isAvailable = (doctorBusyNow[idx] < doctorCapacity[idx]);
+    doctorCurrentPatient[idx] = -1;
+    for (int s = 0; s < doctorCapacity[idx]; s++)
+    {
+        if (doctorSlotPatient[idx][s] >= 0)
+        {
+            doctorCurrentPatient[idx] = doctorSlotPatient[idx][s];
+            break;
+        }
     }
     d->totalPatientsSeen++;
 
@@ -324,21 +566,10 @@ void HospitalSim::onServiceEnd(Patient *p, Doctor *d)
         patientsOnTime++;
     }
 
-    if (idx == 0 && !criticalQueue.isEmpty())
-    {
-        assignDoctor(criticalQueue.peekFront());
-    }
-    if (idx == 1 && !urgentQueue.isEmpty())
-    {
-        assignDoctor(urgentQueue.peekFront());
-    }
-    if (idx == 2 && !normalQueue.isEmpty())
-    {
-        assignDoctor(normalQueue.peekFront());
-    }
+    dispatchWaitingPatients();
 
     char detail[120];
-    std::snprintf(detail, 120, "Patient #%d (%s) discharged | Wait: %.1fs | Dr. %s free",
+    std::snprintf(detail, 120, "Patient #%d (%s) discharged | Wait: %.1fs | %s doctor free",
                   p->id, priorityLabel(p->priority), wait, d->specialization.c_str());
     addEventLog(p->departureTime, "DISCHARGE", detail, 3);
 }
@@ -357,9 +588,23 @@ void HospitalSim::onEvent(Event *e)
     else if (e->type == SERVICE_START)
     {
         Patient *p = engine.getPatient(e->patientId);
+        int idx = doctorIndex(e->doctorType);
+        if (p != 0 && idx >= 0)
+        {
+            int reservedSlot = findReservedDoctorSlotByPatient(idx, p->id);
+            if (reservedSlot >= 0)
+            {
+                doctorSlotReservedPatient[idx][reservedSlot] = -1;
+                doctorSlotPatient[idx][reservedSlot] = p->id;
+                doctorSlotPriority[idx][reservedSlot] = p->priority;
+            }
+            removeFromPriorityQueue(p, p->priority);
+            doctorCurrentPatient[idx] = p->id;
+            doctors[idx].isAvailable = (doctorBusyNow[idx] < doctorCapacity[idx]);
+        }
         const char *priority = (p == 0) ? "UNKNOWN" : priorityLabel(p->priority);
         char detail[120];
-        std::snprintf(detail, 120, "Dr. %s started treating Patient #%d (%s)",
+        std::snprintf(detail, 120, "%s doctor started treating Patient #%d (%s)",
                       e->doctorType.c_str(), e->patientId, priority);
         addEventLog(e->time, "TREATMENT", detail, 1);
     }
@@ -391,7 +636,7 @@ void HospitalSim::onEvent(Event *e)
                 assignDoctor(p);
 
                 char detail[120];
-                std::snprintf(detail, 120, "Patient #%d upgraded %s -> %s after waiting %ds",
+                std::snprintf(detail, 120, "Patient #%d escalated %s -> %s after waiting %ds",
                               p->id, priorityLabel(before), priorityLabel(p->priority), (int)(wait + 0.5));
                 addEventLog(e->time, "ESCALATION", detail, 2);
             }
@@ -399,13 +644,6 @@ void HospitalSim::onEvent(Event *e)
     }
 
     updateLiveView();
-    eventLogDelay += 5000;
-    int pauseMs = fastMode ? 4900 : 4500;
-    if (pauseMs < 0)
-    {
-        pauseMs = 0;
-    }
-    sf::sleep(sf::milliseconds(pauseMs));
 }
 
 void HospitalSim::run()
@@ -421,7 +659,16 @@ void HospitalSim::run()
 
     while (t < (double)durationSeconds)
     {
-        t += (1.0 + (double)(std::rand() % 100) / 100.0) / arrivalRate;
+        double gap = (1.0 + (double)(std::rand() % 100) / 100.0) / arrivalRate;
+        if ((std::rand() % 100) < 30)
+        {
+            gap *= 0.30;
+        }
+        if (gap < 0.5)
+        {
+            gap = 0.5;
+        }
+        t += gap;
         if (t > (double)durationSeconds)
         {
             break;
@@ -484,7 +731,12 @@ double HospitalSim::getDoctorUtilisation(int doctorIndex) const
     {
         return 0.0;
     }
-    double capacityTime = (double)durationSeconds * (double)doctorCapacity[doctorIndex];
+    double simSeconds = engine.getCurrentTime();
+    if (simSeconds < (double)durationSeconds)
+    {
+        simSeconds = (double)durationSeconds;
+    }
+    double capacityTime = simSeconds * (double)doctorCapacity[doctorIndex];
     if (capacityTime <= 0.0)
     {
         return 0.0;
@@ -534,34 +786,83 @@ int HospitalSim::getDoctorCurrentPriority(int doctorIndex)
     {
         return 0;
     }
-    int patientId = doctorCurrentPatient[doctorIndex];
-    if (patientId < 0)
+    for (int slot = 0; slot < doctorCapacity[doctorIndex]; slot++)
     {
-        return 0;
+        if (doctorSlotPatient[doctorIndex][slot] >= 0)
+        {
+            return doctorSlotPriority[doctorIndex][slot];
+        }
     }
-    Patient *p = engine.getPatient(patientId);
-    if (p == 0)
-    {
-        return 0;
-    }
-    return p->priority;
+    return 0;
 }
 
 const char *HospitalSim::getDoctorName(int doctorIndex) const
 {
-    if (doctorIndex == 0)
+    if (doctorIndex < 0 || doctorIndex > 2)
     {
-        return doctors[0].name.c_str();
+        return "UNKNOWN";
     }
-    if (doctorIndex == 1)
+    for (int i = 0; i < doctorBoxCount; i++)
     {
-        return doctors[1].name.c_str();
-    }
-    if (doctorIndex == 2)
-    {
-        return doctors[2].name.c_str();
+        if (doctorBoxRole[i] == doctorIndex)
+        {
+            return doctorBoxNames[i];
+        }
     }
     return "UNKNOWN";
+}
+
+int HospitalSim::getDoctorBoxCount() const { return doctorBoxCount; }
+
+const char *HospitalSim::getDoctorBoxNameByIndex(int boxIndex) const
+{
+    if (boxIndex < 0 || boxIndex >= doctorBoxCount)
+    {
+        return "UNKNOWN";
+    }
+    return doctorBoxNames[boxIndex];
+}
+
+const char *HospitalSim::getDoctorBoxRoleByIndex(int boxIndex) const
+{
+    if (boxIndex < 0 || boxIndex >= doctorBoxCount)
+    {
+        return "Unknown";
+    }
+    return roleNameByIndex(doctorBoxRole[boxIndex]);
+}
+
+int HospitalSim::getDoctorBoxPatientByIndex(int boxIndex) const
+{
+    if (boxIndex < 0 || boxIndex >= doctorBoxCount)
+    {
+        return -1;
+    }
+    int role = doctorBoxRole[boxIndex];
+    int slot = doctorBoxSlot[boxIndex];
+    return doctorSlotPatient[role][slot];
+}
+
+int HospitalSim::getDoctorBoxPriorityByIndex(int boxIndex) const
+{
+    if (boxIndex < 0 || boxIndex >= doctorBoxCount)
+    {
+        return 0;
+    }
+    int role = doctorBoxRole[boxIndex];
+    int slot = doctorBoxSlot[boxIndex];
+    return doctorSlotPriority[role][slot];
+}
+
+int HospitalSim::getDoctorBoxSeenByIndex(int boxIndex) const
+{
+    if (boxIndex < 0 || boxIndex >= doctorBoxCount)
+    {
+        return 0;
+    }
+    int role = doctorBoxRole[boxIndex];
+    int slot = doctorBoxSlot[boxIndex];
+    return doctorSlotSeen[role][slot];
 }
 
 int HospitalSim::getTotalWaiting() const

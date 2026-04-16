@@ -5,11 +5,11 @@
 #include <iostream>
 
 static const float leftPanelX = 0.0f;
-static const float leftPanelW = 380.0f;
-static const float middlePanelX = 390.0f;
-static const float middlePanelW = 390.0f;
-static const float rightPanelX = 790.0f;
-static const float rightPanelW = 480.0f;
+static const float leftPanelW = 290.0f;
+static const float middlePanelX = 291.0f;
+static const float middlePanelW = 260.0f;
+static const float rightPanelX = 552.0f;
+static const float rightPanelW = 728.0f;
 
 static void drawTrimmedText(sf::RenderWindow &w, sf::Font &font, const char *src,
                             float x, float y, unsigned int size, float maxWidth, sf::Color color)
@@ -35,29 +35,13 @@ static void drawTrimmedText(sf::RenderWindow &w, sf::Font &font, const char *src
     w.draw(text);
 }
 
-static void toUpperText(char *text)
-{
-    if (text == 0)
-    {
-        return;
-    }
-    for (int i = 0; text[i] != '\0'; i++)
-    {
-        if (text[i] >= 'a' && text[i] <= 'z')
-        {
-            text[i] = (char)(text[i] - 'a' + 'A');
-        }
-    }
-}
-
 Renderer::Renderer(Window *w)
 {
     win = w;
     ready = false;
     simulationComplete = false;
+    csvSaved = false;
     scrollOffset = 0;
-    upHeld = false;
-    downHeld = false;
     ready = loadFont();
 }
 
@@ -81,13 +65,18 @@ void Renderer::setSimulationComplete(bool done)
     simulationComplete = done;
 }
 
+void Renderer::setCsvSaved(bool saved)
+{
+    csvSaved = saved;
+}
+
 void Renderer::drawPanelTitle(sf::RenderWindow &w, const char *text, float x, float y)
 {
     if (font.getInfo().family.empty())
     {
         return;
     }
-    sf::Text t(text, font, 28);
+    sf::Text t(text, font, 24);
     t.setFillColor(sf::Color::White);
     t.setPosition(x, y);
     w.draw(t);
@@ -134,9 +123,7 @@ void Renderer::drawWaitingPanel(sf::RenderWindow &w, HospitalSim *sim)
     }
 
     int totalWaiting = (sim == 0) ? 0 : sim->getTotalWaiting();
-    char title[64];
-    std::snprintf(title, 64, "WAITING ROOM (%d patients)", totalWaiting);
-    drawPanelTitle(w, title, leftPanelX + 10.0f, 16.0f);
+    drawPanelTitle(w, "WAITING ROOM", leftPanelX + 10.0f, 16.0f);
 
     if (sim == 0)
     {
@@ -174,12 +161,12 @@ void Renderer::drawWaitingPanel(sf::RenderWindow &w, HospitalSim *sim)
         }
         else if (priorities[i] == 2)
         {
-            label = "URGENT";
+            label = "SPECIFIC";
         }
 
         char row[160];
-        std::snprintf(row, 160, "Patient #%d  |  %-8s  |  Waiting: %ds", ids[i], label, waits[i]);
-        drawTrimmedText(w, font, row, leftPanelX + 40.0f, y + 1.0f, 16, leftPanelW - 50.0f, sf::Color::White);
+        std::snprintf(row, 160, "P#%d | %-8s | %ds wait", ids[i], label, waits[i]);
+        drawTrimmedText(w, font, row, leftPanelX + 34.0f, y + 2.0f, 14, leftPanelW - 40.0f, sf::Color::White);
     }
 
     if (totalWaiting > 15)
@@ -197,62 +184,59 @@ void Renderer::drawTreatmentPanel(sf::RenderWindow &w, HospitalSim *sim)
     panel.setPosition(middlePanelX, 0.0f);
     panel.setFillColor(sf::Color(24, 24, 24));
     w.draw(panel);
-    drawPanelTitle(w, "TREATMENT ROOMS", middlePanelX + 10.0f, 16.0f);
+    drawPanelTitle(w, "TREATMENT", middlePanelX + 10.0f, 16.0f);
     if (font.getInfo().family.empty())
     {
         return;
     }
 
-    const char *typeNames[3] = {"Emergency", "General", "Specialist"};
-    const char *priorityNames[4] = {"-", "CRITICAL", "URGENT", "NORMAL"};
-    for (int i = 0; i < 3; i++)
+    int boxCount = (sim == 0) ? 3 : sim->getDoctorBoxCount();
+    if (boxCount < 3)
     {
-        float x = middlePanelX + 10.0f + (float)i * 127.0f;
-        bool busy = sim != 0 && sim->getDoctorBusyNow(i) > 0;
+        boxCount = 3;
+    }
+    if (boxCount > 6)
+    {
+        boxCount = 6;
+    }
 
-        sf::RectangleShape card(sf::Vector2f(116.0f, 220.0f));
-        card.setPosition(x, 100.0f);
+    for (int i = 0; i < boxCount; i++)
+    {
+        float x = middlePanelX + 8.0f;
+        float y = 66.0f + (float)i * 108.0f;
+
+        int patientId = (sim == 0) ? -1 : sim->getDoctorBoxPatientByIndex(i);
+        bool busy = patientId >= 0;
+
+        const char *doctorName = (sim == 0) ? "UNKNOWN" : sim->getDoctorBoxNameByIndex(i);
+        const char *roleName = (sim == 0) ? "Unknown" : sim->getDoctorBoxRoleByIndex(i);
+        int seenToday = (sim == 0) ? 0 : sim->getDoctorBoxSeenByIndex(i);
+
+        sf::RectangleShape card(sf::Vector2f(middlePanelW - 16.0f, 100.0f));
+        card.setPosition(x, y);
         card.setFillColor(sf::Color(32, 32, 40));
-        card.setOutlineThickness(3.0f);
+        card.setOutlineThickness(2.0f);
         card.setOutlineColor(busy ? sf::Color::Yellow : sf::Color::Green);
         w.draw(card);
 
-        char line0[48];
-        std::snprintf(line0, 48, "%s", sim ? sim->getDoctorName(i) : "UNKNOWN");
-        toUpperText(line0);
-        drawTrimmedText(w, font, line0, x + 10.0f, 112.0f, 16, 96.0f, sf::Color::White);
-
-        char line1[48];
-        std::snprintf(line1, 48, "Role: %s", typeNames[i]);
-        drawTrimmedText(w, font, line1, x + 10.0f, 142.0f, 16, 96.0f, sf::Color::White);
+        char line0[96];
+        std::snprintf(line0, 96, "%s (%s)", doctorName, roleName);
+        drawTrimmedText(w, font, line0, x + 6.0f, y + 8.0f, 12, middlePanelW - 28.0f, sf::Color::White);
 
         if (!busy)
         {
-            drawTrimmedText(w, font, "✓ AVAILABLE", x + 10.0f, 212.0f, 16, 96.0f, sf::Color::White);
-
-            char line3[48];
-            std::snprintf(line3, 48, "Seen today: %d", sim ? sim->getDoctorSeenToday(i) : 0);
-            drawTrimmedText(w, font, line3, x + 10.0f, 242.0f, 16, 96.0f, sf::Color::White);
+            drawTrimmedText(w, font, "Status: Free", x + 6.0f, y + 38.0f, 12, middlePanelW - 28.0f, sf::Color::White);
         }
         else
         {
-            int patientId = sim ? sim->getDoctorCurrentPatient(i) : -1;
-            int priority = sim ? sim->getDoctorCurrentPriority(i) : 0;
-            if (priority < 0 || priority > 3)
-            {
-                priority = 0;
-            }
-
-            drawTrimmedText(w, font, "NOW TREATING:", x + 10.0f, 196.0f, 16, 96.0f, sf::Color::White);
-
-            char line3[48];
-            std::snprintf(line3, 48, "Patient #%d", patientId);
-            drawTrimmedText(w, font, line3, x + 10.0f, 226.0f, 16, 96.0f, sf::Color::White);
-
-            char line4[64];
-            std::snprintf(line4, 64, "Priority: %s", priorityNames[priority]);
-            drawTrimmedText(w, font, line4, x + 10.0f, 256.0f, 16, 96.0f, sf::Color::White);
+            char status[64];
+            std::snprintf(status, 64, "Status: Treating Patient #%d", patientId);
+            drawTrimmedText(w, font, status, x + 6.0f, y + 38.0f, 12, middlePanelW - 28.0f, sf::Color::White);
         }
+
+        char treated[48];
+        std::snprintf(treated, 48, "Treated: %d", seenToday);
+        drawTrimmedText(w, font, treated, x + 6.0f, y + 68.0f, 12, middlePanelW - 28.0f, sf::Color(220, 220, 220));
     }
 }
 
@@ -269,18 +253,14 @@ void Renderer::drawEventLogPanel(sf::RenderWindow &w, HospitalSim *sim)
         return;
     }
 
-    bool upNow = sf::Keyboard::isKeyPressed(sf::Keyboard::Up);
-    bool downNow = sf::Keyboard::isKeyPressed(sf::Keyboard::Down);
-    if (upNow && !upHeld)
-    {
-        scrollOffset--;
-    }
-    if (downNow && !downHeld)
+    if (win != 0 && win->consumeUpPress())
     {
         scrollOffset++;
     }
-    upHeld = upNow;
-    downHeld = downNow;
+    if (win != 0 && win->consumeDownPress())
+    {
+        scrollOffset--;
+    }
 
     int total = sim->getEventLogCount();
     int maxOffset = 0;
@@ -297,7 +277,7 @@ void Renderer::drawEventLogPanel(sf::RenderWindow &w, HospitalSim *sim)
         scrollOffset = maxOffset;
     }
 
-    for (int i = 0; i < 12; i++)
+    for (int i = 0; i < 13; i++)
     {
         int idx = total - 1 - (scrollOffset + i);
         if (idx < 0)
@@ -322,14 +302,9 @@ void Renderer::drawEventLogPanel(sf::RenderWindow &w, HospitalSim *sim)
 
         char line[192];
         std::snprintf(line, 192, "%s", sim->getEventLogLine(idx));
-        drawTrimmedText(w, font, line, rightPanelX + 10.0f, 64.0f + (float)i * 22.0f,
-                        13, rightPanelW - 20.0f, color);
+        drawTrimmedText(w, font, line, rightPanelX + 8.0f, 54.0f + (float)i * 23.0f,
+                        10, rightPanelW - 8.0f, color);
     }
-
-    char footer[96];
-    std::snprintf(footer, 96, "UP/DOWN arrows to scroll | %d/500 events", total);
-    drawTrimmedText(w, font, footer, rightPanelX + 10.0f, 334.0f,
-                    12, rightPanelW - 20.0f, sf::Color(200, 200, 200));
 }
 
 void Renderer::drawStatsPanel(sf::RenderWindow &w, HospitalSim *sim)
@@ -345,20 +320,23 @@ void Renderer::drawStatsPanel(sf::RenderWindow &w, HospitalSim *sim)
         return;
     }
 
-    char lines[8][96];
-    std::snprintf(lines[0], 96, "Total Patients: %d", sim->getTotalPatients());
-    std::snprintf(lines[1], 96, "Currently Waiting: %d", sim->getTotalWaiting());
-    std::snprintf(lines[2], 96, "Avg Wait Time: %.1f s", sim->getAverageWait());
-    std::snprintf(lines[3], 96, "Escalations: %d", sim->getEscalationCount());
-    std::snprintf(lines[4], 96, "Emergency Doctor: %d%% busy", (int)(sim->getDoctorUtilisation(0) + 0.5));
-    std::snprintf(lines[5], 96, "General Doctor: %d%% busy", (int)(sim->getDoctorUtilisation(1) + 0.5));
-    std::snprintf(lines[6], 96, "Specialist Doctor: %d%% busy", (int)(sim->getDoctorUtilisation(2) + 0.5));
-    std::snprintf(lines[7], 96, "Current Sim Time: %.1f s", sim->getCurrentSimTime());
+    char lines[6][160];
+    int lineCount = 0;
+    std::snprintf(lines[lineCount], 160, "Total Patients: %d", sim->getTotalPatients());
+    lineCount++;
+    std::snprintf(lines[lineCount], 160, "Currently Waiting: %d", sim->getTotalWaiting());
+    lineCount++;
+    std::snprintf(lines[lineCount], 160, "Avg Wait Time: %.1f s", sim->getAverageWait());
+    lineCount++;
+    std::snprintf(lines[lineCount], 160, "Escalations: %d", sim->getEscalationCount());
+    lineCount++;
+    std::snprintf(lines[lineCount], 160, "Current Sim Time: %.1f s", sim->getCurrentSimTime());
+    lineCount++;
 
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < lineCount; i++)
     {
-        drawTrimmedText(w, font, lines[i], rightPanelX + 10.0f, 430.0f + (float)i * 34.0f,
-                        20, rightPanelW - 20.0f, sf::Color::White);
+        drawTrimmedText(w, font, lines[i], rightPanelX + 10.0f, 420.0f + (float)i * 26.0f,
+                        16, rightPanelW - 20.0f, sf::Color::White);
     }
 }
 
@@ -375,24 +353,11 @@ void Renderer::drawCompletionPanel(sf::RenderWindow &w, HospitalSim *sim)
         return;
     }
 
-    int emUse = (int)(sim->getDoctorUtilisation(0) + 0.5);
-    int genUse = (int)(sim->getDoctorUtilisation(1) + 0.5);
-    int specUse = (int)(sim->getDoctorUtilisation(2) + 0.5);
-
-    int seen0 = sim->getDoctorSeenToday(0);
-    int seen1 = sim->getDoctorSeenToday(1);
-    int seen2 = sim->getDoctorSeenToday(2);
-    int busiestIndex = 0;
-    int busiestCount = seen0;
-    if (seen1 > busiestCount)
+    int boxCount = sim->getDoctorBoxCount();
+    int totalSeen = 0;
+    for (int i = 0; i < boxCount; i++)
     {
-        busiestIndex = 1;
-        busiestCount = seen1;
-    }
-    if (seen2 > busiestCount)
-    {
-        busiestIndex = 2;
-        busiestCount = seen2;
+        totalSeen += sim->getDoctorBoxSeenByIndex(i);
     }
 
     int critical = sim->getCountCritical();
@@ -403,7 +368,7 @@ void Renderer::drawCompletionPanel(sf::RenderWindow &w, HospitalSim *sim)
     if (urgent > commonCount)
     {
         commonCount = urgent;
-        commonLabel = "URGENT";
+        commonLabel = "SPECIFIC";
     }
     if (normal > commonCount)
     {
@@ -417,30 +382,62 @@ void Renderer::drawCompletionPanel(sf::RenderWindow &w, HospitalSim *sim)
                         ? (int)((double)sim->getPatientsOnTime() * 100.0 / (double)sim->getTotalPatients() + 0.5)
                         : 0;
 
-    char lines[11][180];
+    char lines[20][180];
+    int lineCount = 0;
     std::snprintf(lines[0], 180, "Average Patient Wait: %.1fs", sim->getAverageWait());
-    std::snprintf(lines[1], 180, "Longest Wait Today: %.1fs", sim->getLongestWait());
-    std::snprintf(lines[2], 180, "Priority Upgrades (Triage): %d", sim->getEscalationCount());
-    std::snprintf(lines[3], 180, "Dr. Anjali (Emergency) - Time Occupied: %d%%", emUse);
-    std::snprintf(lines[4], 180, "Dr. Mahesh (General) - Time Occupied: %d%%", genUse);
-    std::snprintf(lines[5], 180, "Dr. Rahul (Specialist) - Time Occupied: %d%%", specUse);
-    std::snprintf(lines[6], 180, "Busiest Doctor: %s (%d patients)", sim->getDoctorName(busiestIndex), busiestCount);
-    std::snprintf(lines[7], 180, "Most Common Case: %s (%d%%)", commonLabel, commonPct);
-    std::snprintf(lines[8], 180, "Patients Seen on Time (waited < 30s): %d%%", onTimePct);
-    std::snprintf(lines[9], 180, "Peak Waiting Room Size: %d patients", sim->getPeakWaitingRoom());
-    if (emUse > 80)
+    lineCount++;
+    std::snprintf(lines[lineCount], 180, "Longest Wait Today: %.1fs", sim->getLongestWait());
+    lineCount++;
+    std::snprintf(lines[lineCount], 180, "Priority Upgrades (Triage): %d", sim->getEscalationCount());
+    lineCount++;
+    std::snprintf(lines[lineCount], 180, "Most Common Case: %s (%d%%)", commonLabel, commonPct);
+    lineCount++;
+    std::snprintf(lines[lineCount], 180, "Patients Seen on Time (waited < 30s): %d%%", onTimePct);
+    lineCount++;
+    std::snprintf(lines[lineCount], 180, "Peak Waiting Room Size: %d patients", sim->getPeakWaitingRoom());
+    lineCount++;
+
+    int usedPct = 0;
+    int usedSeen = 0;
+    for (int i = 0; i < boxCount && lineCount < 20; i++)
     {
-        std::snprintf(lines[10], 180, "Recommendation: Consider adding 1 more Emergency doctor");
+        int seen = sim->getDoctorBoxSeenByIndex(i);
+        int pct = 0;
+        if (totalSeen > 0)
+        {
+            if (i == boxCount - 1)
+            {
+                pct = 100 - usedPct;
+            }
+            else
+            {
+                int remSeen = totalSeen - usedSeen;
+                int remPct = 100 - usedPct;
+                pct = (remSeen > 0) ? (seen * remPct) / remSeen : 0;
+            }
+        }
+        usedPct += pct;
+        usedSeen += seen;
+        std::snprintf(lines[lineCount], 180, "%s : %d%% patients seen", sim->getDoctorBoxNameByIndex(i), pct);
+        lineCount++;
+    }
+
+    if (csvSaved)
+    {
+        std::snprintf(lines[lineCount], 180, "Results saved in results.csv");
     }
     else
     {
-        std::snprintf(lines[10], 180, "Recommendation: Emergency load is manageable");
+        std::snprintf(lines[lineCount], 180, "CSV save failed: check folder write permission");
     }
+    lineCount++;
+    std::snprintf(lines[lineCount], 180, "Press ESC to exit the application");
+    lineCount++;
 
-    for (int i = 0; i < 11; i++)
+    for (int i = 0; i < lineCount; i++)
     {
-        drawTrimmedText(w, font, lines[i], rightPanelX + 10.0f, 416.0f + (float)i * 27.0f,
-                        15, rightPanelW - 20.0f, sf::Color::White);
+        drawTrimmedText(w, font, lines[i], rightPanelX + 10.0f, 404.0f + (float)i * 20.0f,
+                        14, rightPanelW - 20.0f, sf::Color::White);
     }
 }
 
@@ -456,9 +453,9 @@ void Renderer::drawAll(HospitalSim *sim)
 
     sf::RectangleShape sep(sf::Vector2f(1.0f, 720.0f));
     sep.setFillColor(sf::Color::White);
-    sep.setPosition(385.0f, 0.0f);
+    sep.setPosition(290.0f, 0.0f);
     w.draw(sep);
-    sep.setPosition(785.0f, 0.0f);
+    sep.setPosition(551.0f, 0.0f);
     w.draw(sep);
 
     drawEventLogPanel(w, sim);

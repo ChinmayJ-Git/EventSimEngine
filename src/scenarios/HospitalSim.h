@@ -19,6 +19,14 @@ private:
     int doctorBusyNow[3];
     double doctorBusyTime[3];
     int doctorCurrentPatient[3];
+    int doctorSlotPatient[3][6];
+    int doctorSlotReservedPatient[3][6];
+    int doctorSlotPriority[3][6];
+    int doctorSlotSeen[3][6];
+    int doctorBoxCount;
+    int doctorBoxRole[6];
+    int doctorBoxSlot[6];
+    char doctorBoxNames[6][32];
     LinkedList<Patient *> criticalQueue;
     LinkedList<Patient *> urgentQueue;
     LinkedList<Patient *> normalQueue;
@@ -42,6 +50,14 @@ private:
     int patientsOnTime;
 
     int doctorIndex(const std::string &type) const;
+    const char *roleNameByIndex(int roleIndex) const;
+    int preferredRoleByPriority(int priority) const;
+    int fallbackRoleByPriority(int priority) const;
+    int findFreeDoctorSlot(int roleIndex) const;
+    int findReservedDoctorSlotByPatient(int roleIndex, int patientId) const;
+    int findDoctorSlotByPatient(int roleIndex, int patientId) const;
+    Patient *findFirstWaiting(LinkedList<Patient *> &queue) const;
+    void dispatchWaitingPatients();
     void enqueueByPriority(Patient *p);
     void removeFromPriorityQueue(Patient *p, int oldPriority);
     void addEventLog(double timeValue, const char *eventName, const char *details, int logType);
@@ -70,6 +86,12 @@ public:
     int getDoctorCurrentPatient(int doctorIndex) const;
     int getDoctorCurrentPriority(int doctorIndex);
     const char *getDoctorName(int doctorIndex) const;
+    int getDoctorBoxCount() const;
+    const char *getDoctorBoxNameByIndex(int boxIndex) const;
+    const char *getDoctorBoxRoleByIndex(int boxIndex) const;
+    int getDoctorBoxPatientByIndex(int boxIndex) const;
+    int getDoctorBoxPriorityByIndex(int boxIndex) const;
+    int getDoctorBoxSeenByIndex(int boxIndex) const;
     int getTotalWaiting() const;
     int getPeakWaitingRoom() const;
     int getCountCritical() const;

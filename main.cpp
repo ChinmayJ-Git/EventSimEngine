@@ -6,7 +6,7 @@
 
 int main()
 {
-  Window window("Hospital Emergency Simulator", 1280, 720);
+  Window window("MediSim Engine", 1280, 720);
   Menu menu;
   if (!menu.isReady())
   {
@@ -34,10 +34,11 @@ int main()
   sim->setFastMode(config.fastMode);
   sim->run();
   sim->printStats();
-  CSVExporter::exportRun(sim->getCurrentSimTime(), sim->getTotalPatients(),
-                         sim->getAverageWait(), sim->getLongestWait(), sim->getEscalationCount(),
-                         sim->getDoctorUtilisation(0), sim->getDoctorUtilisation(1),
-                         sim->getDoctorUtilisation(2), sim->getTotalWaiting());
+  bool csvSaved = CSVExporter::exportRun(sim->getCurrentSimTime(), sim->getTotalPatients(),
+                                         sim->getAverageWait(), sim->getLongestWait(), sim->getEscalationCount(),
+                                         sim->getDoctorUtilisation(0), sim->getDoctorUtilisation(1),
+                                         sim->getDoctorUtilisation(2), sim->getTotalWaiting());
+  renderer.setCsvSaved(csvSaved);
   renderer.setSimulationComplete(true);
 
   while (window.checkOpen())

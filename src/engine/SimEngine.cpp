@@ -9,6 +9,7 @@ SimEngine::SimEngine(double endTime)
   nextPatientId = 1;
   eventHandler = 0;
   eventDelayMs = 500;
+  stopRequested = false;
 }
 
 void SimEngine::setEventHandler(EventHandler *handler)
@@ -54,9 +55,15 @@ double SimEngine::getCurrentTime() const
   return clock.getCurrentTime();
 }
 
+void SimEngine::requestStop()
+{
+  stopRequested = true;
+}
+
 void SimEngine::run()
 {
-  while (!clock.hasSimulationEnded() && !eventQueue.isEmpty())
+  stopRequested = false;
+  while (!stopRequested && !eventQueue.isEmpty())
   {
     Event *e = eventQueue.extractMinimum();
     if (e == 0)

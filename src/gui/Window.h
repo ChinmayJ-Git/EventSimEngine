@@ -9,6 +9,8 @@ class Window
 private:
     sf::RenderWindow window;
     bool isOpen;
+    bool upPressed;
+    bool downPressed;
 
 public:
     Window(std::string title, int width, int height);
@@ -17,6 +19,8 @@ public:
     void close();
     bool checkOpen();
     void pollEvents();
+    bool consumeUpPress();
+    bool consumeDownPress();
     sf::RenderWindow &getWindow();
 };
 

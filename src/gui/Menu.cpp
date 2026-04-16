@@ -41,12 +41,73 @@ int Menu::getFieldValue(const SimConfig &config, int index) const
 
 void Menu::setFieldValue(SimConfig &config, int index, int value)
 {
-  int minValue = 1;
-  int maxValue = 120;
   if (index < 3)
   {
-    maxValue = 20;
+    if (value < 1)
+    {
+      value = 1;
+    }
+    if (value > 6)
+    {
+      value = 6;
+    }
+
+    int c = config.criticalDoctors;
+    int g = config.generalDoctors;
+    int s = config.specialistDoctors;
+    if (index == 0)
+    {
+      c = value;
+    }
+    else if (index == 1)
+    {
+      g = value;
+    }
+    else
+    {
+      s = value;
+    }
+
+    while (c + g + s > 6)
+    {
+      if (index != 0 && c > 1)
+      {
+        c--;
+      }
+      else if (index != 1 && g > 1)
+      {
+        g--;
+      }
+      else if (index != 2 && s > 1)
+      {
+        s--;
+      }
+      else if (index == 0 && c > 1)
+      {
+        c--;
+      }
+      else if (index == 1 && g > 1)
+      {
+        g--;
+      }
+      else if (index == 2 && s > 1)
+      {
+        s--;
+      }
+      else
+      {
+        break;
+      }
+    }
+
+    config.criticalDoctors = c;
+    config.generalDoctors = g;
+    config.specialistDoctors = s;
+    return;
   }
+
+  int minValue = 1;
+  int maxValue = 120;
   if (index == 3)
   {
     minValue = 60;
@@ -94,8 +155,8 @@ SimConfig Menu::show(sf::RenderWindow &window)
   config.criticalDoctors = 2;
   config.generalDoctors = 2;
   config.specialistDoctors = 2;
-  config.duration = 600;
-  config.arrivalRate = 8;
+  config.duration = 200;
+  config.arrivalRate = 6;
   config.fastMode = false;
 
   if (!fontLoaded)
@@ -113,9 +174,9 @@ SimConfig Menu::show(sf::RenderWindow &window)
       "Seconds Between Patient Arrivals",
       "Simulation Speed"};
   const char *hints[fieldCount] = {
-      "(use LEFT/RIGHT arrows to change)",
-      "(use LEFT/RIGHT arrows to change)",
-      "(use LEFT/RIGHT arrows to change)",
+      "(LEFT/RIGHT: min 1 each, total doctors max 6)",
+      "(LEFT/RIGHT: min 1 each, total doctors max 6)",
+      "(LEFT/RIGHT: min 1 each, total doctors max 6)",
       "(use LEFT/RIGHT arrows to change)",
       "(use LEFT/RIGHT arrows to change)",
       "(use LEFT/RIGHT arrows to toggle)"};
@@ -202,15 +263,23 @@ SimConfig Menu::show(sf::RenderWindow &window)
 
     window.clear(sf::Color(26, 26, 46));
 
-    sf::Text title("Hospital Emergency Department Simulator", font, 30);
+    sf::Text title("MediSim Engine", font, 30);
     title.setFillColor(sf::Color::White);
     title.setPosition(60.0f, 24.0f);
     window.draw(title);
 
-    sf::Text subtitle("Configure your simulation below", font, 20);
+    sf::Text subtitle("Configure your simulation below (doctor min 1 each, total max 6)", font, 20);
     subtitle.setFillColor(sf::Color(200, 200, 200));
     subtitle.setPosition(60.0f, 62.0f);
     window.draw(subtitle);
+
+    char doctorTotal[80];
+    std::snprintf(doctorTotal, 80, "Current doctors total: %d / 6",
+                  config.criticalDoctors + config.generalDoctors + config.specialistDoctors);
+    sf::Text doctorTotalText(doctorTotal, font, 18);
+    doctorTotalText.setFillColor(sf::Color(220, 220, 160));
+    doctorTotalText.setPosition(60.0f, 92.0f);
+    window.draw(doctorTotalText);
 
     for (int i = 0; i < fieldCount; i++)
     {
