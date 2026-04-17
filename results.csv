@@ -1,2 +1,6 @@
 RunTimeSeconds,TotalPatients,AvgWaitSeconds,LongestWaitSeconds,TotalEscalations,EmergencyUtilPct,GeneralUtilPct,SpecialistUtilPct,PatientsStillWaiting
 277.334,27,20.877,60.720,4,55.889,62.199,58.053,0
+330.880,23,22.193,103.066,0,85.529,49.716,30.978,0
+295.528,30,37.894,71.552,5,53.294,58.370,74.781,0
+257.656,30,21.397,75.084,3,63.457,66.368,56.665,0
+277.864,28,17.100,53.872,2,39.408,65.140,72.697,0
